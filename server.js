@@ -6,10 +6,21 @@ const server = http.createServer((req, res) => {
   console.log('now: ', new Date().toLocaleString());
   console.log(req.headers);
 
-  res.setHeader('Content-Type', 'text/html');
-  res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('ok');
+  req
+    .on('error', (err) => {
+      console.error(err);
+    })
+    .on('data', (chunk) => {
+      console.log('chunk', chunk);
+      // body.push(chunk);
+    })
+    .on('end', () => {
+      res.setHeader('Content-Type', 'text/html');
+      res.setHeader('X-Foo', 'fromServer');
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+
+      res.end('ok');
+    });
 });
 
 server.listen(PORT);
