@@ -1,2 +1,3 @@
 # toy-browser
-build a toy browser
+
+Build a toy browser.

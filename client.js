@@ -1,4 +1,5 @@
 const net = require('net');
+const parser = require('./parser.js');
 
 const PORT = 8088;
 const HOST = '127.0.0.1';
@@ -236,8 +237,8 @@ class TrunkedBodyParser {
         this.current = this.WAITING_LENGTH_LINE_END;
       } else {
         // 进一位
-        this.length *= 10;
-        this.length += char.charCodeAt(0) - '0'.charCodeAt(0);
+        this.length *= 16;
+        this.length += parseInt(char, 16);
       }
     } else if (this.current === this.WAITING_LENGTH_LINE_END) {
       if (char === '\n') {
@@ -291,6 +292,10 @@ void (async function () {
     },
   });
 
-  const res = await request.send(client);
-  console.warn('🚀 ~ file: client.js:139 ~ send resolve: \n', res);
+  const response = await request.send(client);
+
+  const dom = parser.parseHTML(response.body);
+
+  // console.warn('🚀\n ~ file: client.js:298 ~ dom:', dom);
+  // console.warn('🚀 ~ file: client.js:139 ~ send resolve: \n', response);
 })();
