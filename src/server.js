@@ -1,8 +1,8 @@
-const http = require('http');
+import { createServer } from 'http';
 
 const PORT = 8088;
 
-const server = http.createServer((req, res) => {
+const server = createServer((req, res) => {
   console.log('now: ', new Date().toLocaleString());
   console.log(req.headers);
 

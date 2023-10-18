@@ -1,5 +1,5 @@
-const net = require('net');
-const parser = require('./parser.js');
+import { connect, createConnection } from 'net';
+import { parseHTML } from './parser.js';
 
 const PORT = 8088;
 const HOST = '127.0.0.1';
@@ -263,7 +263,7 @@ class TrunkedBodyParser {
   }
 }
 
-net.connect({
+connect({
   host: HOST,
   port: PORT,
   onread: {
@@ -274,7 +274,7 @@ net.connect({
   },
 });
 
-const client = net.createConnection({
+const client = createConnection({
   host: HOST,
   port: PORT,
 });
@@ -294,7 +294,7 @@ void (async function () {
 
   const response = await request.send(client);
 
-  const dom = parser.parseHTML(response.body);
+  const dom = parseHTML(response.body);
 
   // console.warn('🚀\n ~ file: client.js:298 ~ dom:', dom);
   // console.warn('🚀 ~ file: client.js:139 ~ send resolve: \n', response);

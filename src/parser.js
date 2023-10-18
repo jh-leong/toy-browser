@@ -1,3 +1,5 @@
+import { computeCSS, addCSSRules } from './cssParser.js';
+
 let currentToken = null;
 let currentTextNode = null;
 let currentAttribute = null;
@@ -223,13 +225,17 @@ function selfClosingStartTag(c) {
   }
 }
 
-let stack = [{ type: 'document', children: [] }];
+const stack = [{ type: 'document', children: [] }];
+
+export function getCurrentElementParents() {
+  return stack.slice().reverse();
+}
 
 /**
  * @link https://html.spec.whatwg.org/multipage/parsing.html#tree-construction
  */
 function emit(token) {
-  console.log('token', token);
+  // console.log('token', token);
 
   const top = stack[stack.length - 1];
 
@@ -250,6 +256,15 @@ function emit(token) {
       }
     }
 
+    /**
+     * 此时理论情况下，CSS 规则已经加载完毕 (一般 style 标签会在 body 之前)
+     *
+     * 每创建一个元素, 就计算一次 CSS, 因为父元素的 CSS 可能会影响子元素
+     *
+     * 假如后续新增了 CSS 规则 (比如 body 内出现 style 标签), 则会触发重排&重绘
+     */
+    computeCSS(element);
+
     top.children.push(element);
     element.parent = top;
 
@@ -260,6 +275,10 @@ function emit(token) {
     if (top.tagName != token.tagName) {
       throw new Error("Tag start end doesn't match!");
     } else {
+      if (top.tagName === 'style') {
+        addCSSRules(top.children[0].content);
+      }
+
       stack.pop();
     }
     currentTextNode = null;
@@ -282,7 +301,7 @@ function emit(token) {
  *
  * @link https://html.spec.whatwg.org/multipage/parsing.html
  */
-module.exports.parseHTML = function (html) {
+export function parseHTML(html) {
   let state = data;
 
   for (let c of html) {
@@ -292,7 +311,7 @@ module.exports.parseHTML = function (html) {
   // 手动传入 EOF, 模拟传输结束
   state = state(EOF);
 
-  console.warn('🚀\n ~ file: parser.js:296 ~ stack[0];:', stack[0]);
+  // console.warn('🚀\n ~ file: parser.js:296 ~ stack[0];:', stack[0]);
 
   return stack[0];
-};
+}
