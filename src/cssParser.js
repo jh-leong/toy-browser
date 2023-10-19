@@ -39,30 +39,80 @@ export function computeCSS(element) {
     const matched = j >= selectorParts.length;
 
     if (matched) {
-      console.warn(
-        '🚀\n ~ file: cssParser.js:42 ~ computeCSS ~ matched:',
-        matched
-      );
+      const sp = specificity(rule.selectors[0]);
+      const computedStyle = element.computedStyle;
+
+      for (const { property, value } of rule.declarations) {
+        let propertyValue = computedStyle[property];
+        if (!propertyValue) propertyValue = computedStyle[property] = {};
+
+        if (
+          !propertyValue.specificity ||
+          compare(propertyValue.specificity, sp) < 0
+        ) {
+          propertyValue.value = value;
+          propertyValue.specificity = sp;
+        }
+      }
     }
   }
 }
 
-function match(element, selector) {
-  if (!selector || !element.attributes) {
+function compare(sp1, sp2) {
+  if (sp1[0] - sp2[0]) {
+    return sp1[0] - sp2[0];
+  }
+  if (sp1[1] - sp2[1]) {
+    return sp1[1] - sp2[1];
+  }
+  if (sp1[2] - sp2[2]) {
+    return sp1[2] - sp2[2];
+  }
+  return sp1[3] - sp2[3];
+}
+
+function specificity(selector) {
+  const p = [0, 0, 0, 0];
+  const selectorParts = selector.split(' ');
+
+  for (const part of selectorParts) {
+    if (part.charAt(0) == '#') {
+      p[1] += 1;
+    } else if (part.charAt(0) == '.') {
+      p[2] += 1;
+    } else {
+      p[3] += 1;
+    }
+  }
+  return p;
+}
+
+function getElementAttr(el, name) {
+  return el.attributes.filter((attr) => attr.name === name)?.[0];
+}
+
+/**
+ * 只判断了简单选择器, id class tagName
+ */
+function match(el, selector) {
+  if (!selector || !el.attributes) {
     return false;
   }
+
   if (selector.charAt(0) == '#') {
-    const attr = element.attributes.filter((attr) => attr.name === 'id')[0];
-    if (attr && attr.value === selector.replace('#', '')) {
+    const attr = getElementAttr(el, 'id');
+
+    if (attr?.value === selector.replace('#', '')) {
       return true;
     }
   } else if (selector.charAt(0) == '.') {
-    const attr = element.attributes.filter((attr) => attr.name === 'class')[0];
-    if (attr && attr.value === selector.replace('.', '')) {
+    const attr = getElementAttr(el, 'class');
+
+    if (attr?.value === selector.replace('.', '')) {
       return true;
     }
   } else {
-    if (element.tagName === selector) {
+    if (el.tagName === selector) {
       return true;
     }
   }

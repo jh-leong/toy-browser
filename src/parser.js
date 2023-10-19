@@ -266,7 +266,7 @@ function emit(token) {
     computeCSS(element);
 
     top.children.push(element);
-    element.parent = top;
+    // element.parent = top;
 
     if (!token.isSelfClosing) stack.push(element);
 

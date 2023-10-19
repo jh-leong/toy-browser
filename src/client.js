@@ -296,6 +296,9 @@ void (async function () {
 
   const dom = parseHTML(response.body);
 
-  // console.warn('🚀\n ~ file: client.js:298 ~ dom:', dom);
+  console.warn(
+    '🚀\n ~ file: client.js:298 ~ dom:',
+    JSON.stringify(dom, null, '  ')
+  );
   // console.warn('🚀 ~ file: client.js:139 ~ send resolve: \n', response);
 })();
