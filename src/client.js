@@ -1,5 +1,8 @@
+import images from 'images';
+
 import { connect, createConnection } from 'net';
 import { parseHTML } from './parser.js';
+import { render } from './render.js';
 
 const PORT = 8088;
 const HOST = '127.0.0.1';
@@ -300,5 +303,8 @@ void (async function () {
     '🚀\n ~ file: client.js:298 ~ dom:',
     JSON.stringify(dom, null, '  ')
   );
-  // console.warn('🚀 ~ file: client.js:139 ~ send resolve: \n', response);
+
+  const viewport = images(800, 600);
+  render(viewport, dom);
+  viewport.save('viewport.jpg');
 })();

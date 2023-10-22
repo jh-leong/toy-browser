@@ -9,6 +9,11 @@ dependencies:
     specifier: ^3.0.0
     version: 3.0.0
 
+devDependencies:
+  images:
+    specifier: ^3.2.4
+    version: 3.2.4
+
 packages:
 
   /atob@2.1.2:
@@ -29,6 +34,11 @@ packages:
     resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
     engines: {node: '>=0.10'}
     dev: false
+
+  /images@3.2.4:
+    resolution: {integrity: sha512-Uq61/Q8XixCRyKvws7tPwboK0O70Dbr4kMQZHw2dqdEhnU6TpaGwyMg0vzQ4aaGtrO9N3etq46XwF7hxbqp8ug==}
+    requiresBuild: true
+    dev: true
 
   /inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
