@@ -1,4 +1,5 @@
 import { computeCSS, addCSSRules } from './cssParser.js';
+import { layout } from './layout.js';
 
 let currentToken = null;
 let currentTextNode = null;
@@ -279,6 +280,10 @@ function emit(token) {
         addCSSRules(top.children[0].content);
       }
 
+      /**
+       * 在 'endTag' 阶段处理布局, 此时已获取元素的所有子元素
+       */
+      layout(top);
       stack.pop();
     }
     currentTextNode = null;
