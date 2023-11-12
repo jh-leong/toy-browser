@@ -6,7 +6,7 @@ export function create(cls, attributes, ...children) {
   }
 
   const visit = (children) => {
-    for (const child of children) {
+    for (let child of children) {
       if (child instanceof Array) {
         visit(child);
         continue;

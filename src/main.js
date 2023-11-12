@@ -5,6 +5,8 @@ const imgs = [
   'https://static001.geekbang.org/resource/image/73/e4/730ea9c393def7975deceb48b3eb6fe4.jpg',
 ];
 
+const container = document.getElementById('app');
+
 /**
  * 1. vanilla
  */
@@ -14,12 +16,15 @@ const imgs = [
 /**
  * 2. jsx
  */
-import { create, Text, Element } from './plugin/cus-jsx.js';
-import { Carousel } from './component/Carousel.jsx';
-const carousel = <Carousel data={imgs}></Carousel>;
-carousel.mountTo(document.getElementById('app'));
+// import { create, Text, Element } from './plugin/cus-jsx.js';
+// import { Carousel } from './component/Carousel.jsx';
+// const carousel = <Carousel data={imgs}></Carousel>;
+// carousel.mountTo(container);
 
 /**
  * 3. sfc
  */
-import foo from './component/Carousel.sfc';
+import { create, Text, Element } from './plugin/cus-jsx.js';
+import { Carousel } from './component/Carousel.sfc';
+const carousel = <Carousel data={imgs}></Carousel>;
+carousel.mountTo(container);
