@@ -78,13 +78,15 @@ export class Timeline {
     this.tick();
   }
 
-  /** @type { (animation: Animation, startTime?: number) => void } */
+  /** @type { (animation: Animation, startTime?: number) => Timeline } */
   add(animation, addTime) {
     this.animations.push(animation);
     animation.finished = false;
 
     animation.addTime =
       addTime ?? (this.state === 'playing' ? Date.now() - this.startTime : 0);
+
+    return this;
   }
 }
 

@@ -54,7 +54,4 @@ const an2 = new ColorAnimation({
   timingFunction: timingFunction.linear,
 });
 
-const tl = new Timeline();
-tl.add(an);
-tl.add(an2);
-tl.start();
+new Timeline().add(an).add(an2).start();
