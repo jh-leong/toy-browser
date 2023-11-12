@@ -1,6 +1,7 @@
 export class Carousel {
+  /** @type any */
   root = null;
-  data = null;
+  data = [];
   duration = 1000;
   position = 0;
 
@@ -39,14 +40,14 @@ export class Carousel {
   }
 
   mount(container = '') {
-    document.getElementById(container).appendChild(this.root);
+    document.getElementById(container)?.appendChild(this.root);
   }
 
   initImg() {
     this.data.forEach((src, i) => {
       const imgContainer = document.createElement('div');
       imgContainer.classList.add('img-container');
-      imgContainer.setAttribute('data-index', i);
+      imgContainer.setAttribute('data-index', String(i));
 
       const img = document.createElement('img');
       img.src = src;

@@ -25,6 +25,7 @@ const container = document.getElementById('app');
  * 3. sfc
  */
 import { create, Text, Element } from './plugin/cus-jsx.js';
+// @ts-ignore
 import { Carousel } from './component/Carousel.sfc';
 const carousel = <Carousel data={imgs}></Carousel>;
 carousel.mountTo(container);

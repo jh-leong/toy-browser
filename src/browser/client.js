@@ -1,3 +1,4 @@
+// @ts-nocheck
 import images from 'images';
 
 import { connect, createConnection } from 'net';
@@ -96,7 +97,7 @@ ${this.bodyText}`;
         if (parser.isFinished) {
           resolve(parser.response);
         } else {
-          reject('parser error: ', dataIfy);
+          reject('parser error: ' + dataIfy);
         }
 
         connection.end();
@@ -137,6 +138,7 @@ class ResponseParser {
     this.headerName = '';
     this.headerValue = '';
 
+    /** @type any */
     this.bodyParser = null;
   }
 
@@ -266,12 +268,14 @@ class TrunkedBodyParser {
   }
 }
 
+// @ts-ignore
 connect({
   host: HOST,
   port: PORT,
   onread: {
     buffer: Buffer.alloc(4 * 1024),
     callback: function (nread, buf) {
+      // @ts-ignore
       console.log(buf.toString('utf8', 0, nread));
     },
   },

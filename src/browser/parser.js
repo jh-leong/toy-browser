@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { computeCSS, addCSSRules } from './cssParser.js';
 import { layout } from './layout.js';
 

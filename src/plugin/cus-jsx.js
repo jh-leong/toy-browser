@@ -57,10 +57,6 @@ export class Element {
       const eventName = RegExp.$1.replace(/^[\s\S]/, (s) => s.toLowerCase());
       this.addEventListener(eventName, value);
     }
-
-    if (name === 'enableGesture') {
-      enableGesture(this.root);
-    }
   }
 
   appendChild(child) {
@@ -96,6 +92,7 @@ export class Component {
   }
 
   mountTo(parent) {
+    // @ts-ignore
     this.render().mountTo(parent);
   }
 }

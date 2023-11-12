@@ -4,7 +4,9 @@ export class Carousel extends Component {
   imgs = [];
   position = 0;
   duration = 1000;
+  /** @type any */
   root = null;
+  data = []
 
   constructor(config) {
     super();

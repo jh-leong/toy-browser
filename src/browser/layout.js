@@ -47,18 +47,28 @@ export function layout(element) {
   if (!style.alignContent || style.alignContent === 'auto')
     style.alignContent = 'stretch';
 
+  /** @type any */
   let mainSize;
+  /** @type any */
   let mainStart;
+  /** @type any */
   let mainEnd;
+  /** @type any */
   let mainSign;
   /**
+   * @type any
    * 元素排列方向的起点位置
    */
   let mainBase;
+  /** @type any */
   let crossSize;
+  /** @type any */
   let crossStart;
+  /** @type any */
   let crossEnd;
+  /** @type any */
   let crossSign;
+  /** @type any */
   let crossBase;
 
   if (style.flexDirection === 'row') {
@@ -116,7 +126,7 @@ export function layout(element) {
     crossSign = 1;
   }
 
-  const isAutoMainSize = false;
+  let isAutoMainSize = false;
   if (!style[mainSize]) {
     elementStyle[mainSize] = items.reduce(
       (acc, item) => acc + (getStyle(item)[mainSize] || 0),
@@ -125,7 +135,9 @@ export function layout(element) {
     isAutoMainSize = true;
   }
 
-  const flexLine = [];
+  /** @type any */
+  let flexLine = [];
+  /** @type any[] */
   const flexLines = [flexLine];
 
   let mainSpace = elementStyle[mainSize];
@@ -261,7 +273,7 @@ export function layout(element) {
           const item = items[i];
           const itemStyle = getStyle(item);
 
-          itemStyle[(mainStart, currentMain)];
+          // itemStyle[(mainStart, currentMain)];
           itemStyle[mainEnd] =
             itemStyle[mainStart] + mainSign * itemStyle[mainSize];
           currentMain = itemStyle[mainEnd] + step;

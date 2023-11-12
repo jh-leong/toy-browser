@@ -12,6 +12,7 @@ export default function (source) {
     if (tagName === 'script') {
       script = children[0]?.content;
     } else if (tagName === 'template') {
+      // @ts-ignore
       template = node.children.filter((e) => e.type !== 'text').pop();
     }
   }
@@ -37,6 +38,7 @@ export default function (source) {
     return code;
   };
 
+  // @ts-ignore
   const fileName = this.resourcePath.match(/([^/]+).sfc$/)[1];
 
   const code = `
