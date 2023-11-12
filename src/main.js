@@ -18,3 +18,8 @@ import { create, Text, Element } from './plugin/cus-jsx.js';
 import { Carousel } from './component/Carousel.jsx';
 const carousel = <Carousel data={imgs}></Carousel>;
 carousel.mountTo(document.getElementById('app'));
+
+/**
+ * 3. sfc
+ */
+import foo from './component/Carousel.sfc';
