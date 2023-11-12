@@ -36,7 +36,7 @@ export class Timeline {
         an.finished = true;
       }
 
-      const value = start + progression * (end - start);
+      const value = an.valueFromProgression(progression);
 
       object[property] = template(value);
     });
@@ -110,5 +110,41 @@ export class Animation {
     this.duration = duration;
     this.delay = delay;
     this.timingFunction = timingFunction;
+  }
+
+  valueFromProgression(progression) {
+    return this.start + progression * (this.end - this.start);
+  }
+}
+
+export class ColorAnimation extends Animation {
+  constructor({
+    object,
+    property,
+    start,
+    end,
+    duration,
+    delay = 0,
+    timingFunction,
+  }) {
+    super({
+      object,
+      property,
+      start,
+      end,
+      duration,
+      delay,
+      timingFunction,
+      template: (v) => `rgba(${v.r}, ${v.g}, ${v.b}, ${v.a})`,
+    });
+  }
+
+  valueFromProgression(progression) {
+    return {
+      r: this.start.r + progression * (this.end.r - this.start.r),
+      g: this.start.g + progression * (this.end.g - this.start.g),
+      b: this.start.b + progression * (this.end.b - this.start.b),
+      a: this.start.a + progression * (this.end.a - this.start.a),
+    };
   }
 }

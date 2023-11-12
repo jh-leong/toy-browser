@@ -33,7 +33,7 @@ carousel.mountTo(container);
 // carousel.mountTo(container);
 
 import { timingFunction } from './plugin/cubicBezier.js';
-import { Timeline, Animation } from './plugin/animation.js';
+import { Timeline, Animation, ColorAnimation } from './plugin/animation.js';
 
 const an = new Animation({
   object: container.style,
@@ -45,6 +45,16 @@ const an = new Animation({
   timingFunction: timingFunction.linear,
 });
 
+const an2 = new ColorAnimation({
+  object: container.style,
+  start: { r: 0, g: 0, b: 0, a: 1 },
+  end: { r: 122, g: 200, b: 122, a: 1 },
+  duration: 5000,
+  property: 'background',
+  timingFunction: timingFunction.linear,
+});
+
 const tl = new Timeline();
 tl.add(an);
+tl.add(an2);
 tl.start();
