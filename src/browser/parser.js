@@ -226,6 +226,107 @@ function selfClosingStartTag(c) {
   }
 }
 
+// in script
+function scriptData(c) {
+  if (c == '<') {
+    return scriptDataLessThanSign;
+  } else {
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '<'
+function scriptDataLessThanSign(c) {
+  if (c == '/') {
+    return scriptDataEndTagOpen;
+  } else {
+    emit({ type: 'text', content: '<' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '</'
+function scriptDataEndTagOpen(c) {
+  if (c == 's') {
+    return scriptDataEndTagNameS;
+  } else {
+    emit({ type: 'text', content: '</' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '</s'
+function scriptDataEndTagNameS(c) {
+  if (c == 'c') {
+    return scriptDataEndTagNameC;
+  } else {
+    emit({ type: 'text', content: '</s' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '</sc'
+function scriptDataEndTagNameC(c) {
+  if (c == 'r') {
+    return scriptDataEndTagNameR;
+  } else {
+    emit({ type: 'text', content: '</sc' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '</scr'
+function scriptDataEndTagNameR(c) {
+  if (c == 'i') {
+    return scriptDataEndTagNameI;
+  } else {
+    emit({ type: 'text', content: '</scr' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '</scri'
+function scriptDataEndTagNameI(c) {
+  if (c == 'p') {
+    return scriptDataEndTagNameP;
+  } else {
+    emit({ type: 'text', content: '</scri' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '</scrip'
+function scriptDataEndTagNameP(c) {
+  if (c == 't') {
+    return scriptDataEndTag;
+  } else {
+    emit({ type: 'text', content: '</scrip' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
+// in script received '</script'
+function scriptDataEndTag(c) {
+  if (c == ' ') {
+    return scriptDataEndTag;
+  } else if (c == '>') {
+    emit({ type: 'endTag', tagName: 'script' });
+    return data;
+  } else {
+    emit({ type: 'text', content: '</script' });
+    emit({ type: 'text', content: c });
+    return scriptData;
+  }
+}
+
 const stack = [{ type: 'document', children: [] }];
 
 export function getCurrentElementParents() {
@@ -311,6 +412,10 @@ export function parseHTML(html) {
 
   for (let c of html) {
     state = state(c);
+
+    if (stack[stack.length - 1].tagName === 'script' && state === data) {
+      state = scriptData;
+    }
   }
 
   // 手动传入 EOF, 模拟传输结束
