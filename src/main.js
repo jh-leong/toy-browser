@@ -5,6 +5,8 @@ const imgs = [
   'https://static001.geekbang.org/resource/image/73/e4/730ea9c393def7975deceb48b3eb6fe4.jpg',
 ];
 
+/** @type {HTMLElement} */
+// @ts-ignore
 const container = document.getElementById('app');
 
 /**
@@ -16,16 +18,33 @@ const container = document.getElementById('app');
 /**
  * 2. jsx
  */
-// import { create, Text, Element } from './plugin/cus-jsx.js';
-// import { Carousel } from './component/Carousel.jsx';
-// const carousel = <Carousel data={imgs}></Carousel>;
-// carousel.mountTo(container);
+import { create, Text, Element } from './plugin/cus-jsx.js';
+import { Carousel } from './component/Carousel.jsx';
+const carousel = <Carousel data={imgs}></Carousel>;
+carousel.mountTo(container);
 
 /**
  * 3. sfc
  */
-import { create, Text, Element } from './plugin/cus-jsx.js';
-// @ts-ignore
-import { Carousel } from './component/Carousel.sfc';
-const carousel = <Carousel data={imgs}></Carousel>;
-carousel.mountTo(container);
+// import { create, Text, Element } from './plugin/cus-jsx.js';
+// // @ts-ignore
+// import { Carousel } from './component/Carousel.sfc';
+// const carousel = <Carousel data={imgs}></Carousel>;
+// carousel.mountTo(container);
+
+import { timingFunction } from './plugin/cubicBezier.js';
+import { Timeline, Animation } from './plugin/animation.js';
+
+const an = new Animation({
+  object: container.style,
+  start: 0,
+  end: 200,
+  duration: 5000,
+  property: 'transform',
+  template: (v) => `translateX(${v}px)`,
+  timingFunction: timingFunction.linear,
+});
+
+const tl = new Timeline();
+tl.add(an);
+tl.start();
