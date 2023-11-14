@@ -1,41 +1,110 @@
 import { create, Text, Element, Component } from '../plugin/cus-jsx';
+import { Animation, Timeline } from '../plugin/animation';
+import { timingFunction } from '../plugin/cubicBezier';
 
 export class Carousel extends Component {
-  imgs = [];
-  position = 0;
-  duration = 1000;
   /** @type any */
   root = null;
-  data = []
+  data = [];
+  imgs = [];
+  curIdx = 0;
+  duration = 1000;
 
   constructor(config) {
     super();
   }
 
-  get nextPos() {
-    return (this.position + 1) % this.imgs.length;
+  /** @private */
+  get nextIdx() {
+    return (this.curIdx + 1) % this.imgs.length;
   }
 
-  get prePos() {
+  /** @private */
+  get preIdx() {
     const len = this.imgs.length;
-    return (this.position - 1 + len) % len;
+    return (this.curIdx - 1 + len) % len;
   }
 
+  /** @private */
   get width() {
     return this.root.clientWidth;
   }
 
   render() {
-    this.initImg();
+    this.root = <div class="carousel">{this.initImg()}</div>;
 
-    this.root = <div class="carousel">{this.imgs}</div>;
-
-    this.autoPlay();
+    this.play();
     this.initDrag();
 
     return this.root;
   }
 
+  prev(offset = 0) {
+    this.transitionCurImg('next', offset);
+  }
+
+  next(offset = 0) {
+    this.transitionCurImg('pre', offset);
+  }
+
+  play() {
+    const nextPic = () => {
+      this.next();
+      this.playTimer = setTimeout(nextPic, this.duration);
+    };
+
+    this.playTimer = setTimeout(nextPic, this.duration);
+  }
+
+  pause() {
+    if (this.timeline) {
+      this.timeline.pause();
+      this.timeline = null;
+    }
+
+    clearTimeout(this.playTimer);
+  }
+
+  /**
+   * @private
+   * @type {(toPos: 'pre' | 'next', offset?: number) => void}
+   */
+  transitionCurImg(toPos, offset = 0) {
+    const curImgAn = this.createAnimation(
+      this.curIdx,
+      this.getTranslateXByIdx(this.curIdx, 'cur', offset),
+      this.getTranslateXByIdx(this.curIdx, toPos)
+    );
+
+    const candidateIdx = toPos === 'pre' ? this.nextIdx : this.preIdx;
+    const candidateStartPos = toPos === 'pre' ? 'next' : 'pre';
+
+    const candidateImgAn = this.createAnimation(
+      candidateIdx,
+      this.getTranslateXByIdx(candidateIdx, candidateStartPos, offset),
+      this.getTranslateXByIdx(candidateIdx, 'cur')
+    );
+
+    this.timeline = new Timeline();
+    this.timeline.add(curImgAn).add(candidateImgAn).start();
+
+    this.curIdx = candidateIdx;
+  }
+
+  /** @private */
+  createAnimation(idx, start, end) {
+    return new Animation({
+      object: this.imgs[idx].style,
+      property: 'transform',
+      start,
+      end,
+      duration: this.duration,
+      template: (v) => `translateX(${v}px)`,
+      timingFunction: timingFunction.ease,
+    });
+  }
+
+  /** @private */
   initImg() {
     this.imgs = this.data.map((url, i) => {
       const img = <img src={url} />;
@@ -50,39 +119,38 @@ export class Carousel extends Component {
 
       return imgContainer;
     });
+    return this.imgs;
   }
 
-  autoPlay() {
-    this.position = 0;
-
-    const nextPic = () => {
-      this.resetImgPosition(this.nextPos, this.getOriginX().next);
-      setTimeout(() => this.next(), 16);
-      setTimeout(nextPic, this.duration);
-    };
-
-    setTimeout(nextPic, this.duration);
-  }
-
+  /** @private */
   initDrag() {
-    this.root.addEventListener('mousedown', ({ clientX: startX }) => {
-      this.reset();
+    this.root.addEventListener('mousedown', (event) => {
+      const { clientX: startX, target } = event;
 
-      const move = ({ clientX: endX }) => this.move(endX - startX);
+      this.pause();
+
+      const initOffset = this.resetCarouseByTarget(target);
+
+      let offset = initOffset;
+      const move = ({ clientX: endX }) => {
+        offset = endX - startX + initOffset;
+        this.shiftCarouselImgs(offset);
+      };
 
       const up = ({ clientX: endX }) => {
         const diff = endX - startX;
-        const threshold = this.width / 5;
+        const threshold = this.width / 6;
 
         if (diff > threshold) {
-          this.prev();
+          this.prev(offset);
         } else if (diff < -threshold) {
-          this.next();
+          this.next(offset);
         } else {
-          this.reset();
+          this.shiftCarouselImgs();
         }
 
         removeEvent();
+        this.play();
       };
 
       const removeEvent = () => {
@@ -95,56 +163,57 @@ export class Carousel extends Component {
     });
   }
 
-  resetImgPosition(pos, offsetXInPercent) {
-    const el = this.imgs[pos];
-    el.style.transition = 'none';
-    this.setPositionBaseClient(pos, offsetXInPercent);
+  /** @private */
+  resetCarouseByTarget(target) {
+    this.curIdx = Number(target.parentElement.dataset.index);
+
+    const offset =
+      this.getClientRectsLeft(target) - this.getClientRectsLeft(this.root);
+
+    this.shiftCarouselImgs(offset);
+
+    return offset;
   }
 
-  setImgPosition(pos, offsetXInPercent, useTransition = true) {
-    const el = this.imgs[pos];
-    if (useTransition) el.style.transition = '';
-    this.setPositionBaseClient(pos, offsetXInPercent);
+  /** @private */
+  getClientRectsLeft(target) {
+    return target.getClientRects()?.['0']?.left || 0;
   }
 
-  setPositionBaseClient(pos, offsetX) {
-    const el = this.imgs[pos];
-    el.style.transform = `translateX(${-1 * this.width * pos + offsetX}px)`;
+  /**
+   * @private
+   * @type {(idx: number, pos: 'pre' | 'cur' | 'next', offset?: number) => number}
+   */
+  getTranslateXByIdx(idx, pos, offset = 0) {
+    return this.getOriginXByIdx(idx) + this.getRelativeXOffsets()[pos] + offset;
   }
 
-  next() {
-    const { pre, cur } = this.getOriginX();
-    this.setImgPosition(this.position, pre);
-    this.setImgPosition(this.nextPos, cur);
-    this.position = this.nextPos;
+  /** @private */
+  shiftCarouselImgs(offset = 0) {
+    const { pre, cur, next } = this.getRelativeXOffsets();
+
+    this.setImgRelativePos(this.preIdx, offset + pre);
+    this.setImgRelativePos(this.curIdx, offset + cur);
+    this.setImgRelativePos(this.nextIdx, offset + next);
   }
 
-  prev() {
-    const { cur, next } = this.getOriginX();
-    this.setImgPosition(this.prePos, cur);
-    this.setImgPosition(this.position, next);
-    this.position = this.prePos;
+  /** @private */
+  setImgRelativePos(idx, offsetX) {
+    const el = this.imgs[idx];
+    el.style.transform = `translateX(${this.getOriginXByIdx(idx) + offsetX}px)`;
   }
 
-  getOriginX() {
+  /** @private */
+  getOriginXByIdx(idx) {
+    return -1 * this.width * idx;
+  }
+
+  /** @private */
+  getRelativeXOffsets() {
     return {
       pre: -this.width,
       cur: 0,
       next: this.width,
     };
-  }
-
-  reset() {
-    const { pre, cur, next } = this.getOriginX();
-    this.resetImgPosition(this.prePos, pre);
-    this.resetImgPosition(this.position, cur);
-    this.resetImgPosition(this.nextPos, next);
-  }
-
-  move(offset) {
-    const { pre, cur, next } = this.getOriginX();
-    this.setImgPosition(this.prePos, offset + pre, false);
-    this.setImgPosition(this.position, offset + cur, false);
-    this.setImgPosition(this.nextPos, offset + next, false);
   }
 }

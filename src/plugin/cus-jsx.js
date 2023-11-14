@@ -74,6 +74,10 @@ export class Element {
       child.mountTo(this.root);
     }
   }
+
+  getClientRects() {
+    return this.root.getClientRects();
+  }
 }
 
 export class Component {

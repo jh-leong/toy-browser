@@ -10,6 +10,7 @@ export class Timeline {
 
   constructor() {}
 
+  /** @private */
   tick() {
     const t = Date.now() - this.startTime;
 
@@ -22,8 +23,6 @@ export class Timeline {
         object,
         property,
         template,
-        start,
-        end,
         timingFunction,
         delay,
         addTime,

@@ -33,25 +33,45 @@ carousel.mountTo(container);
 // carousel.mountTo(container);
 
 import { timingFunction } from './plugin/cubicBezier.js';
-import { Timeline, Animation, ColorAnimation } from './plugin/animation.js';
+import { Timeline, ColorAnimation } from './plugin/animation.js';
 
-const an = new Animation({
-  object: container.style,
-  start: 0,
-  end: 200,
-  duration: 5000,
-  property: 'transform',
-  template: (v) => `translateX(${v}px)`,
-  timingFunction: timingFunction.linear,
-});
+const duration = 1500;
+const bg = [
+  { r: 141, g: 132, b: 231, a: 1 },
+  { r: 222, g: 231, b: 132, a: 0.8 },
+  { r: 231, g: 132, b: 222, a: 0.8 },
+  { r: 132, g: 231, b: 222, a: 0.8 },
+  { r: 132, g: 222, b: 231, a: 0.8 },
+  { r: 132, g: 231, b: 132, a: 0.8 },
+  { r: 231, g: 132, b: 132, a: 0.8 },
+  { r: 132, g: 132, b: 231, a: 0.8 },
+  { r: 222, g: 132, b: 231, a: 0.8 },
+  { r: 132, g: 222, b: 132, a: 0.8 },
+  { r: 132, g: 231, b: 222, a: 0.8 },
+  { r: 132, g: 231, b: 132, a: 0.8 },
+  { r: 132, g: 132, b: 231, a: 0.8 },
+  { r: 222, g: 132, b: 132, a: 0.8 },
+  { r: 132, g: 222, b: 231, a: 0.8 },
+  { r: 132, g: 231, b: 132, a: 0.8 },
+  { r: 132, g: 132, b: 231, a: 0.8 },
+];
 
-const an2 = new ColorAnimation({
-  object: container.style,
-  start: { r: 0, g: 0, b: 0, a: 1 },
-  end: { r: 122, g: 200, b: 122, a: 1 },
-  duration: 5000,
-  property: 'background',
-  timingFunction: timingFunction.linear,
-});
+const createBgAnimation = (start, end) =>
+  new ColorAnimation({
+    object: container.style,
+    end,
+    start,
+    duration,
+    property: 'background',
+    timingFunction: timingFunction.ease,
+  });
 
-new Timeline().add(an).add(an2).start();
+const advance = (i) => (i %= bg.length);
+
+const fire = (i = 0) => {
+  new Timeline()
+    .add(createBgAnimation(bg[advance(i)], bg[advance(++i)]))
+    .start();
+  setTimeout(() => fire(i), duration);
+};
+fire();
