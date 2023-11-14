@@ -48,12 +48,10 @@ export class Carousel extends Component {
   }
 
   play() {
-    const nextPic = () => {
+    this.playTimer = setTimeout(() => {
       this.next();
-      this.playTimer = setTimeout(nextPic, this.duration);
-    };
-
-    this.playTimer = setTimeout(nextPic, this.duration);
+      this.play();
+    }, this.duration);
   }
 
   pause() {
@@ -61,7 +59,6 @@ export class Carousel extends Component {
       this.timeline.pause();
       this.timeline = null;
     }
-
     clearTimeout(this.playTimer);
   }
 
