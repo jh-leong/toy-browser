@@ -3,6 +3,10 @@ import { Animation, Timeline } from '../plugin/animation';
 import { timingFunction } from '../plugin/cubicBezier';
 import { enableGesture } from '../plugin/gesture';
 
+/**
+ * @typedef {'prePre' | 'pre' | 'cur' | 'next' | 'nextNext'} Pos
+ */
+
 export class Carousel extends Component {
   /** @type any */
   root = null;
@@ -86,19 +90,30 @@ export class Carousel extends Component {
       this.getTranslateXByIdx(this.curIdx, toPos)
     );
 
-    const candidateIdx = toPos === 'pre' ? this.nextIdx : this.preIdx;
-    const candidateStartPos = toPos === 'pre' ? 'next' : 'pre';
+    const preImgAn = this.createAnimation(
+      this.preIdx,
+      this.getTranslateXByIdx(this.preIdx, 'pre', offset),
+      this.getTranslateXByIdx(this.preIdx, toPos === 'pre' ? 'prePre' : 'cur')
+    );
 
-    const candidateImgAn = this.createAnimation(
-      candidateIdx,
-      this.getTranslateXByIdx(candidateIdx, candidateStartPos, offset),
-      this.getTranslateXByIdx(candidateIdx, 'cur')
+    const nextImgAn = this.createAnimation(
+      this.nextIdx,
+      this.getTranslateXByIdx(this.nextIdx, 'next', offset),
+      this.getTranslateXByIdx(
+        this.nextIdx,
+        toPos === 'pre' ? 'cur' : 'nextNext'
+      )
     );
 
     this.timeline = new Timeline();
-    this.timeline.add(curImgAn).add(candidateImgAn).start();
 
-    this.curIdx = candidateIdx;
+    // Each carousel transition needs to move the viewport and its three surrounding images, not just two.
+    // This prevents issues where the previous/next images do not reset properly 
+    // if a drag event is triggered during the transition 
+    // and the drag direction is inconsistent with the transition direction.
+    this.timeline.add(curImgAn).add(preImgAn).add(nextImgAn).start();
+
+    this.curIdx = toPos === 'pre' ? this.nextIdx : this.preIdx;
   }
 
   /** @private */
@@ -117,15 +132,13 @@ export class Carousel extends Component {
   /** @private */
   initImg() {
     this.imgs = this.data.map((url, i) => {
-      const img = <img src={url} />;
+      const img = <img src={url} onDragstart={(e) => e.preventDefault()} />;
 
       const imgContainer = (
         <div class="img-container" data-index={i}>
           {img}
         </div>
       );
-
-      img.addEventListener('dragstart', (event) => event.preventDefault());
 
       return imgContainer;
     });
@@ -152,7 +165,7 @@ export class Carousel extends Component {
       const { clientX: endX, startX } = e.detail;
 
       const diff = endX - startX;
-      const threshold = this.width / 6;
+      const threshold = 20;
 
       if (diff > threshold) {
         this.prev(offset);
@@ -192,7 +205,7 @@ export class Carousel extends Component {
 
   /**
    * @private
-   * @type {(idx: number, pos: 'pre' | 'cur' | 'next', offset?: number) => number}
+   * @type {(idx: number, pos: Pos, offset?: number) => number}
    */
   getTranslateXByIdx(idx, pos, offset = 0) {
     return this.getOriginXByIdx(idx) + this.getRelativeXOffsets()[pos] + offset;
@@ -221,9 +234,11 @@ export class Carousel extends Component {
   /** @private */
   getRelativeXOffsets() {
     return {
+      prePre: -2 * this.width,
       pre: -this.width,
       cur: 0,
       next: this.width,
+      nextNext: 2 * this.width,
     };
   }
 }
