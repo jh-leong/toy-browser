@@ -53,10 +53,8 @@ export class Element {
   setAttribute(name, value) {
     this.root.setAttribute(name, value);
 
-    if (name.match(/^on([\s\S]+)$/)) {
-      const eventName = RegExp.$1.replace(/^[\s\S]/, (s) => s.toLowerCase());
-      this.addEventListener(eventName, value);
-    }
+    const inMatch = name.match(/^on([\s\S]+)$/);
+    inMatch && this.addEventListener(inMatch[1].toLowerCase(), value);
   }
 
   appendChild(child) {
