@@ -28,6 +28,8 @@ export class Timeline {
         addTime,
       } = an;
 
+      if (t < delay + addTime) return;
+
       let progression = timingFunction((t - delay - addTime) / duration);
 
       if (t > duration + delay + addTime) {
