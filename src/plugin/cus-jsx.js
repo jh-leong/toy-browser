@@ -67,6 +67,10 @@ export class Element {
     this.root.addEventListener(...arguments);
   }
 
+  dispatchEvent() {
+    this.root.dispatchEvent(...arguments);
+  }
+
   mountTo(parent) {
     parent.appendChild(this.root);
 

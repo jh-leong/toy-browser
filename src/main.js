@@ -76,16 +76,16 @@ const fire = (i = 0) => {
 };
 fire();
 
-import { enableGesture } from './plugin/gesture.js';
+// import { enableGesture } from './plugin/gesture.js';
 
-const el = document.body;
-enableGesture(el);
+// const el = document.body;
+// enableGesture(el);
 
-// 禁用右键
-window.addEventListener('contextmenu', (e) => e.preventDefault());
-// 禁用选择文本
-document.addEventListener('selectstart', (e) => e.preventDefault());
-// 禁用双指缩放
-document.addEventListener('touchmove', (e) => e.preventDefault(), {
-  passive: false,
-});
+// // 禁用右键
+// window.addEventListener('contextmenu', (e) => e.preventDefault());
+// // 禁用选择文本
+// document.addEventListener('selectstart', (e) => e.preventDefault());
+// // 禁用双指缩放
+// document.addEventListener('touchmove', (e) => e.preventDefault(), {
+//   passive: false,
+// });

@@ -10,9 +10,17 @@ export function enableGesture(el) {
     const { clientX, clientY } = point;
     const { startX, startY } = context;
 
-    const detail = { clientX, clientY, startX, startY, ...others };
+    const detail = {
+      clientX,
+      clientY,
+      startX,
+      startY,
+      ...others,
+      context: { ...context },
+      point: { target: point.target },
+    };
 
-    el.dispatchEvent(new CustomEvent(eventName, { detail }));
+    el.dispatchEvent(new CustomEvent(eventName, { detail, bubbles: true }));
   }
 
   function start(point, context) {
@@ -93,8 +101,11 @@ export function enableGesture(el) {
     }
 
     if (!context.isPan && !context.isPress) {
+      context.isTap = true;
       dispatchEvent('tap', point, context);
     }
+
+    dispatchEvent('end', point, context);
   }
 
   function cancel(point, context) {

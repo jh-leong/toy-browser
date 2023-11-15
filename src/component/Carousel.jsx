@@ -1,6 +1,7 @@
 import { create, Text, Element, Component } from '../plugin/cus-jsx';
 import { Animation, Timeline } from '../plugin/animation';
 import { timingFunction } from '../plugin/cubicBezier';
+import { enableGesture } from '../plugin/gesture';
 
 export class Carousel extends Component {
   /** @type any */
@@ -33,6 +34,8 @@ export class Carousel extends Component {
   render() {
     this.root = <div class="carousel">{this.initImg()}</div>;
 
+    enableGesture(this.root);
+
     this.play();
     this.initDrag();
 
@@ -55,6 +58,16 @@ export class Carousel extends Component {
   }
 
   pause() {
+    if (this.timeline) this.timeline.pause();
+    clearTimeout(this.playTimer);
+  }
+
+  resume() {
+    if (this.timeline) this.timeline.resume();
+    this.play();
+  }
+
+  stop() {
     if (this.timeline) {
       this.timeline.pause();
       this.timeline = null;
@@ -121,42 +134,42 @@ export class Carousel extends Component {
 
   /** @private */
   initDrag() {
-    this.root.addEventListener('mousedown', (event) => {
-      const { clientX: startX, target } = event;
+    let offset = 0;
+    let initOffset = 0;
 
-      this.pause();
+    const onDragStart = (e) => {
+      this.stop();
+      offset = initOffset = this.resetCarouseByTarget(e.detail.point.target);
+    };
 
-      const initOffset = this.resetCarouseByTarget(target);
+    const onDrag = (e) => {
+      const { clientX: endX, startX } = e.detail;
+      offset = endX - startX + initOffset;
+      this.shiftCarouselImgs(offset);
+    };
 
-      let offset = initOffset;
-      const move = ({ clientX: endX }) => {
-        offset = endX - startX + initOffset;
-        this.shiftCarouselImgs(offset);
-      };
+    const onDragEnd = (e) => {
+      const { clientX: endX, startX } = e.detail;
 
-      const up = ({ clientX: endX }) => {
-        const diff = endX - startX;
-        const threshold = this.width / 6;
+      const diff = endX - startX;
+      const threshold = this.width / 6;
 
-        if (diff > threshold) {
-          this.prev(offset);
-        } else if (diff < -threshold) {
-          this.next(offset);
-        } else {
-          this.shiftCarouselImgs();
-        }
+      if (diff > threshold) {
+        this.prev(offset);
+      } else if (diff < -threshold) {
+        this.next(offset);
+      } else {
+        this.shiftCarouselImgs();
+      }
 
-        removeEvent();
-        this.play();
-      };
+      this.play();
+    };
 
-      const removeEvent = () => {
-        document.removeEventListener('mouseup', up);
-        document.removeEventListener('mousemove', move);
-      };
-
-      document.addEventListener('mouseup', up);
-      document.addEventListener('mousemove', move);
+    this.root.addEventListener('start', () => this.pause());
+    this.root.addEventListener('panStart', onDragStart);
+    this.root.addEventListener('pan', onDrag);
+    this.root.addEventListener('end', (e) => {
+      e.detail.context.isPan ? onDragEnd(e) : this.resume();
     });
   }
 
