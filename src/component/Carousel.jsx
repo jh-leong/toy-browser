@@ -81,7 +81,7 @@ export class Carousel extends Component {
 
   /**
    * @private
-   * @type {(toPos: 'pre' | 'next', offset?: number) => void}
+   * @type {(toPos: 'pre' | 'cur' | 'next', offset?: number) => void}
    */
   transitionCurImg(toPos, offset = 0) {
     const curImgAn = this.createAnimation(
@@ -93,7 +93,10 @@ export class Carousel extends Component {
     const preImgAn = this.createAnimation(
       this.preIdx,
       this.getTranslateXByIdx(this.preIdx, 'pre', offset),
-      this.getTranslateXByIdx(this.preIdx, toPos === 'pre' ? 'prePre' : 'cur')
+      this.getTranslateXByIdx(
+        this.preIdx,
+        toPos === 'cur' ? 'pre' : toPos === 'pre' ? 'prePre' : 'cur'
+      )
     );
 
     const nextImgAn = this.createAnimation(
@@ -101,19 +104,21 @@ export class Carousel extends Component {
       this.getTranslateXByIdx(this.nextIdx, 'next', offset),
       this.getTranslateXByIdx(
         this.nextIdx,
-        toPos === 'pre' ? 'cur' : 'nextNext'
+        toPos === 'cur' ? 'next' : toPos === 'pre' ? 'cur' : 'nextNext'
       )
     );
 
     this.timeline = new Timeline();
 
     // Each carousel transition needs to move the viewport and its three surrounding images, not just two.
-    // This prevents issues where the previous/next images do not reset properly 
-    // if a drag event is triggered during the transition 
+    // This prevents issues where the previous/next images do not reset properly
+    // if a drag event is triggered during the transition
     // and the drag direction is inconsistent with the transition direction.
     this.timeline.add(curImgAn).add(preImgAn).add(nextImgAn).start();
 
-    this.curIdx = toPos === 'pre' ? this.nextIdx : this.preIdx;
+    if (toPos !== 'cur') {
+      this.curIdx = toPos === 'pre' ? this.nextIdx : this.preIdx;
+    }
   }
 
   /** @private */
@@ -149,10 +154,12 @@ export class Carousel extends Component {
   initDrag() {
     let offset = 0;
     let initOffset = 0;
+    let dragImg = null;
 
     const onDragStart = (e) => {
       this.stop();
-      offset = initOffset = this.resetCarouseByTarget(e.detail.point.target);
+      dragImg = e.detail.point.target;
+      offset = initOffset = this.resetCarouseByTarget(dragImg);
     };
 
     const onDrag = (e) => {
@@ -164,15 +171,15 @@ export class Carousel extends Component {
     const onDragEnd = (e) => {
       const { clientX: endX, startX } = e.detail;
 
-      const diff = endX - startX;
-      const threshold = 20;
+      const offsetLeft = this.getOffsetLeftBetweenClient(dragImg);
 
-      if (diff > threshold) {
+      if (Math.abs(offsetLeft) <= 60) {
+        // reset the position of the current img if it close to the left edge of client
+        this.transitionCurImg('cur', offsetLeft);
+      } else if (endX - startX > 0) {
         this.prev(offset);
-      } else if (diff < -threshold) {
-        this.next(offset);
       } else {
-        this.shiftCarouselImgs();
+        this.next(offset);
       }
 
       this.play();
@@ -190,12 +197,16 @@ export class Carousel extends Component {
   resetCarouseByTarget(target) {
     this.curIdx = Number(target.parentElement.dataset.index);
 
-    const offset =
-      this.getClientRectsLeft(target) - this.getClientRectsLeft(this.root);
+    const offset = this.getOffsetLeftBetweenClient(target);
 
     this.shiftCarouselImgs(offset);
 
     return offset;
+  }
+
+  /** @private */
+  getOffsetLeftBetweenClient(target) {
+    return this.getClientRectsLeft(target) - this.getClientRectsLeft(this.root);
   }
 
   /** @private */
