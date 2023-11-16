@@ -3,6 +3,9 @@ import { Animation, Timeline } from '../plugin/animation';
 import { timingFunction } from '../plugin/cubicBezier';
 import { enableGesture } from '../plugin/gesture';
 
+// @ts-ignore
+import css from './Carousel.css';
+
 export class Carousel extends Component {
   /** @type any */
   root = null;
