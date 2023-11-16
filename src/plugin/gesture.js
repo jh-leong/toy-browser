@@ -2,6 +2,7 @@
  * @type {(el: HTMLElement) => void}
  */
 export function enableGesture(el) {
+  /** @type { Record<PropertyKey, Partial<GestureContext>> } */
   const context = {};
 
   const MOUSE_SYMBOL = Symbol('mouse');

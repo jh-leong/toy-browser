@@ -3,10 +3,6 @@ import { Animation, Timeline } from '../plugin/animation';
 import { timingFunction } from '../plugin/cubicBezier';
 import { enableGesture } from '../plugin/gesture';
 
-/**
- * @typedef {'prePre' | 'pre' | 'cur' | 'next' | 'nextNext'} Pos
- */
-
 export class Carousel extends Component {
   /** @type any */
   root = null;
@@ -216,7 +212,7 @@ export class Carousel extends Component {
 
   /**
    * @private
-   * @type {(idx: number, pos: Pos, offset?: number) => number}
+   * @type {(idx: number, pos: CarouselPos, offset?: number) => number}
    */
   getTranslateXByIdx(idx, pos, offset = 0) {
     return this.getOriginXByIdx(idx) + this.getRelativeXOffsets()[pos] + offset;
