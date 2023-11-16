@@ -30,6 +30,12 @@ const config = {
           loader: './src/plugin/SFCLoader.js',
         },
       },
+      {
+        test: /\.css$/i,
+        use: {
+          loader: './src/plugin/cssLoader.js',
+        },
+      },
     ],
   },
   optimization: {
