@@ -77,32 +77,35 @@ export class Carousel extends Component {
 
   /**
    * @private
-   * @type {(toPos: 'pre' | 'cur' | 'next', offset?: number) => void}
+   * @type {(toPos: 'pre' | 'cur' | 'next', offset?: number, anConfig?: any) => void}
    */
-  transitionCurImg(toPos, offset = 0) {
-    const curImgAn = this.createAnimation(
-      this.curIdx,
-      this.getTranslateXByIdx(this.curIdx, 'cur', offset),
-      this.getTranslateXByIdx(this.curIdx, toPos)
-    );
+  transitionCurImg(toPos, offset = 0, anConfig = {}) {
+    const curImgAn = this.createAnimation({
+      idx: this.curIdx,
+      start: this.getTranslateXByIdx(this.curIdx, 'cur', offset),
+      end: this.getTranslateXByIdx(this.curIdx, toPos),
+      ...anConfig,
+    });
 
-    const preImgAn = this.createAnimation(
-      this.preIdx,
-      this.getTranslateXByIdx(this.preIdx, 'pre', offset),
-      this.getTranslateXByIdx(
+    const preImgAn = this.createAnimation({
+      idx: this.preIdx,
+      start: this.getTranslateXByIdx(this.preIdx, 'pre', offset),
+      end: this.getTranslateXByIdx(
         this.preIdx,
         toPos === 'cur' ? 'pre' : toPos === 'pre' ? 'prePre' : 'cur'
-      )
-    );
+      ),
+      ...anConfig,
+    });
 
-    const nextImgAn = this.createAnimation(
-      this.nextIdx,
-      this.getTranslateXByIdx(this.nextIdx, 'next', offset),
-      this.getTranslateXByIdx(
+    const nextImgAn = this.createAnimation({
+      idx: this.nextIdx,
+      start: this.getTranslateXByIdx(this.nextIdx, 'next', offset),
+      end: this.getTranslateXByIdx(
         this.nextIdx,
         toPos === 'cur' ? 'next' : toPos === 'pre' ? 'cur' : 'nextNext'
-      )
-    );
+      ),
+      ...anConfig,
+    });
 
     this.timeline = new Timeline();
 
@@ -118,13 +121,13 @@ export class Carousel extends Component {
   }
 
   /** @private */
-  createAnimation(idx, start, end) {
+  createAnimation({ idx, start, end, duration = this.duration }) {
     return new Animation({
       object: this.imgs[idx].style,
       property: 'transform',
       start,
       end,
-      duration: this.duration,
+      duration,
       template: (v) => `translateX(${v}px)`,
       timingFunction: timingFunction.ease,
     });
@@ -171,7 +174,7 @@ export class Carousel extends Component {
 
       if (Math.abs(offsetLeft) <= 60) {
         // reset the position of the current img if it close to the left edge of client
-        this.transitionCurImg('cur', offsetLeft);
+        this.transitionCurImg('cur', offsetLeft, { duration: 300 });
       } else if (endX - startX > 0) {
         this.prev(offset);
       } else {
