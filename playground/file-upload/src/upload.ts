@@ -1,5 +1,5 @@
 import SparkMD5 from 'spark-md5';
-import { CusAbortController, RequestConfig, post } from '@/request';
+import { CusAbortController, post } from '@/request';
 import { flushJobs } from '@/utils';
 
 export interface FileChunk {
@@ -13,10 +13,7 @@ export type ChunkUploadProgress = Record<string, number>;
 
 interface UploadOption {
   onProgress?: (progress: ChunkUploadProgress) => void;
-  onChunkComplete?: (
-    chunks: FileChunk[],
-    progress: ChunkUploadProgress
-  ) => void;
+  onChunkComplete?: (chunks: FileChunk[]) => void;
 }
 
 export enum UploadState {
@@ -36,8 +33,9 @@ export class FileUploader {
   chunkSize = 0;
   chunks: FileChunk[] = [];
   uploadedChunks: string[] = [];
-  onProgress: (chunkHash: string, percent: number) => void = () => void 0;
   abortList: CusAbortController[] = [];
+  progressMap: ChunkUploadProgress = {};
+  options: UploadOption = {};
 
   constructor(file: File) {
     this.file = file;
@@ -47,33 +45,38 @@ export class FileUploader {
     return this.file.name;
   }
 
-  async upload(options: UploadOption) {
-    const { uploaded, chunks, chunkSize, fileHash, uploadedChunks } =
-      await prepareUpload(this.file);
+  get fileSize() {
+    return this.file.size;
+  }
 
-    Object.assign(this, {
-      chunks,
-      chunkSize,
-      fileHash,
-      uploadedChunks,
-      options,
-    });
+  async upload(options: UploadOption) {
+    this.options = options;
+    this.chunkSize = getChunkSize(this.fileSize);
+
+    // 1. 计算 hash
+    this.fileHash = await calculateHashSample(this.file, this.chunkSize);
+
+    // 2. 校验文件是否已上传
+    const { uploaded, uploadedChunks } = await verifyFile(
+      this.filename,
+      this.fileHash
+    );
 
     if (uploaded) {
       this.state = UploadState.UPLOADED;
       return;
     }
 
-    const { handler: onProgress, progress } = getProgressHandler(
-      chunks,
-      options.onProgress
-    );
-    this.onProgress = onProgress;
-
-    options.onChunkComplete?.(chunks, progress);
+    // 3. 分块
+    this.chunks = createFileChunk({
+      file: this.file,
+      size: this.chunkSize,
+      fileHash: this.fileHash,
+    });
+    options.onChunkComplete?.(this.chunks);
 
     // 4. 分片上传
-    await this.doChunksUpload();
+    await this.doChunksUpload(uploadedChunks);
 
     // 5. 合并文件
     await this.doMerge();
@@ -81,11 +84,30 @@ export class FileUploader {
     this.onUploadSuccess();
   }
 
-  onUploadSuccess() {
-    this.state = UploadState.SUCCESS;
+  pause() {
+    this.state = UploadState.PAUSED;
+    this.abortList.forEach((ctrl) => ctrl.abort());
+    // release abortList
+    this.abortList = [];
   }
 
-  async doMerge() {
+  async resume() {
+    if (this.state !== UploadState.PAUSED) return;
+
+    const { uploadedChunks } = await verifyFile(this.filename, this.fileHash);
+    this.uploadedChunks = uploadedChunks;
+
+    await this.doChunksUpload(uploadedChunks);
+    await this.doMerge();
+  }
+
+  private onUploadSuccess() {
+    this.state = UploadState.SUCCESS;
+    // release memory
+    this.chunks = [];
+  }
+
+  private async doMerge() {
     if (this.state !== UploadState.UPLOADING) return;
 
     await doMerge({
@@ -95,93 +117,42 @@ export class FileUploader {
     });
   }
 
-  async doChunksUpload() {
+  private async doChunksUpload(uploadedChunks: string[]) {
     this.state = UploadState.UPLOADING;
 
+    const seen = new Set(uploadedChunks);
+
+    this.initProgress(seen);
+
+    const onChunkProgress = (chunkHash: string, percent: number) => {
+      this.progressMap[chunkHash] = percent;
+      this.options?.onProgress?.(this.progressMap);
+    };
+
+    const chunks = this.chunks.filter((i) => !seen.has(i.chunkHash));
+
     await doChunksUpload({
-      chunks: this.chunks,
+      chunks,
       fileHash: this.fileHash,
       filename: this.filename,
-      onProgress: this.onProgress,
       abortList: this.abortList,
+      onProgress: onChunkProgress,
     });
   }
 
-  pause() {
-    this.state = UploadState.PAUSED;
-    this.abortList.forEach((ctrl) => ctrl.abort());
+  private initProgress(seen: Set<string>) {
+    this.progressMap = this.chunks.reduce((acc, chunk) => {
+      acc[chunk.chunkHash] = seen.has(chunk.chunkHash) ? 100 : 0;
+      return acc;
+    }, {});
+    this.options?.onProgress?.(this.progressMap);
   }
 }
 
-export async function doUploadFlow(
-  file: File,
-  options: UploadOption = {}
-): Promise<UploadFileInfo | undefined> {
-  const uploadFileInfo = await prepareUpload(file);
-
-  if (uploadFileInfo.uploaded) return uploadFileInfo;
-
-  const { chunks, chunkSize, fileHash } = uploadFileInfo;
-
-  const { handler: onProgress, progress } = getProgressHandler(
-    chunks,
-    options.onProgress
-  );
-
-  options.onChunkComplete?.(chunks, progress);
-
-  // 4. 分片上传
-  const filename = file.name;
-  await doChunksUpload({ chunks, fileHash, filename, onProgress });
-
-  // 5. 合并文件
-  await doMerge({ filename, fileHash, chunkSize });
-}
-
-interface UploadFileInfo {
-  chunks: FileChunk[];
-  chunkSize: number;
-  fileHash: string;
-  uploadedChunks: string[];
-  uploaded: boolean;
-}
-
-async function prepareUpload(file: File): Promise<UploadFileInfo> {
-  const ret: UploadFileInfo = {
-    chunks: [],
-    chunkSize: 0,
-    fileHash: '',
-    uploadedChunks: [],
-    uploaded: false,
-  };
-
-  ret.chunkSize = getChunkSize(file.size);
-
-  // 1. 计算 hash
-  ret.fileHash = await calculateHashSample(file, ret.chunkSize);
-
-  // 2. 校验文件是否已上传
-  const { uploaded, uploadedChunks } = await verifyFile(
-    file.name,
-    ret.fileHash
-  );
-
-  ret.uploaded = uploaded;
-  ret.uploadedChunks = uploadedChunks;
-
-  if (uploaded) return ret;
-
-  // 3. 分块
-  ret.chunks = createFileChunk({
-    file,
-    size: ret.chunkSize,
-    fileHash: ret.fileHash,
-  });
-
-  return ret;
-}
-
-async function verifyFile(filename: string, fileHash: string) {
+async function verifyFile(
+  filename: string,
+  fileHash: string
+): Promise<{ uploaded: boolean; uploadedChunks: string[] }> {
   const formData = new FormData();
   formData.append('fileHash', fileHash);
   formData.append('filename', filename);
@@ -190,23 +161,6 @@ async function verifyFile(filename: string, fileHash: string) {
   const { uploaded = false, uploadedChunks = [] } = data;
 
   return { uploaded, uploadedChunks };
-}
-
-function getProgressHandler(
-  chunks: FileChunk[],
-  onProgress?: UploadOption['onProgress']
-) {
-  const progress: ChunkUploadProgress = chunks.reduce((acc, chunk) => {
-    acc[chunk.chunkHash] = 0;
-    return acc;
-  }, {});
-
-  const handler = (chunkHash: string, percent: number) => {
-    progress[chunkHash] = percent;
-    onProgress?.(progress);
-  };
-
-  return { handler, progress };
 }
 
 function getChunkSize(fileSize: number) {
@@ -224,7 +178,7 @@ async function doChunksUpload({
   chunks: FileChunk[];
   fileHash: string;
   filename: string;
-  onProgress?: FileUploader['onProgress'];
+  onProgress?: OnChunkProgress;
   abortList?: CusAbortController[];
 }) {
   // todo 失败自动重传
@@ -298,11 +252,13 @@ async function calculateHashSample(
   });
 }
 
+type OnChunkProgress = (chunkHash: string, percent: number) => void;
+
 interface UploadData {
   chunk: FileChunk;
   filename: string;
   fileHash: string;
-  onProgress?: FileUploader['onProgress'];
+  onProgress?: OnChunkProgress;
   abortController?: CusAbortController;
 }
 

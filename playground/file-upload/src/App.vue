@@ -73,11 +73,11 @@ async function handleUpload() {
   try {
     loading.value = true;
 
-    // const file = files.value[0];
-    // const ret = await doUploadFlow(file, { onProgress, onChunkComplete });
-    // if (ret?.uploaded) progressComp.value?.completeProgress();
-
-    await fileUploader.upload({ onProgress, onChunkComplete });
+    if (fileUploader.state === UploadState.PAUSED) {
+      await fileUploader.resume();
+    } else {
+      await fileUploader.upload({ onProgress, onChunkComplete });
+    }
 
     if (fileUploader.state === UploadState.UPLOADED) {
       progressComp.value?.completeProgress();
@@ -95,8 +95,8 @@ function pauseUpload() {
 }
 
 const progressComp = ref();
-function onChunkComplete(_: FileChunk[], progressMap: ChunkUploadProgress) {
-  progressComp.value?.init(Object.keys(progressMap));
+function onChunkComplete(chunks: FileChunk[]) {
+  progressComp.value?.init(chunks.map((i) => i.chunkHash));
 }
 
 const progressMap = ref<ChunkUploadProgress>({});
