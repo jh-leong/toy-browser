@@ -19,13 +19,23 @@ interface UploadOption {
   ) => void;
 }
 
-export async function doUploadFlow(file: File, options: UploadOption = {}) {
+interface UploadRes {
+  /** true: 已上传 */
+  uploaded: boolean;
+}
+
+export async function doUploadFlow(
+  file: File,
+  options: UploadOption = {}
+): Promise<UploadRes | undefined> {
   const chunkSize = getChunkSize(file.size);
 
   // 1. 计算 hash
   const fileHash = await calculateHashSample(file, chunkSize);
 
   // 2. 校验文件是否已上传
+  const { uploaded, uploadedChunks } = await verifyFile(file.name, fileHash);
+  if (uploaded) return { uploaded: true };
 
   // 3. 分块
   const chunks: FileChunk[] = createFileChunk({
@@ -47,6 +57,17 @@ export async function doUploadFlow(file: File, options: UploadOption = {}) {
 
   // 5. 合并文件
   await doMerge({ filename, fileHash, chunkSize });
+}
+
+async function verifyFile(filename: string, fileHash: string) {
+  const formData = new FormData();
+  formData.append('fileHash', fileHash);
+  formData.append('filename', filename);
+
+  const { data = {} } = await post('/verify', formData);
+  const { uploaded = false, uploadedChunks = [] } = data;
+
+  return { uploaded, uploadedChunks };
 }
 
 function getProgressHandler(
@@ -160,7 +181,6 @@ interface UploadData {
 
 async function doUpload({ fileHash, filename, chunk, onProgress }: UploadData) {
   const formData = new FormData();
-
   formData.append('chunk', chunk.file);
   formData.append('hash', chunk.chunkHash);
   formData.append('fileHash', fileHash);
@@ -184,7 +204,6 @@ async function doMerge({
   chunkSize: number;
 }) {
   const formData = new FormData();
-
   formData.append('chunkSize', String(chunkSize));
   formData.append('fileHash', fileHash);
   formData.append('filename', filename);

@@ -1,8 +1,6 @@
-import path from 'node:path';
 import fse from 'fs-extra';
 import multiparty from 'multiparty';
-import { UPLOAD_DIR } from './constants.js';
-import { getFilePath, resWrap } from './utils.js';
+import { getChunkDir, getFilePath, resWrap } from './utils.js';
 
 export async function handleUpload(req, res) {
   const multipart = new multiparty.Form();
@@ -19,10 +17,8 @@ export async function handleUpload(req, res) {
       const [fileHash] = field.fileHash;
 
       const filePath = getFilePath(filename, fileHash);
-
-      const chunksDir = path.resolve(UPLOAD_DIR, fileHash);
-
-      const chunkPath = `${chunksDir}/${hash}`;
+      const chunkDir = getChunkDir(fileHash);
+      const chunkPath = `${chunkDir}/${hash}`;
 
       // const info = {
       //   chunk,
@@ -54,8 +50,8 @@ export async function handleUpload(req, res) {
         return;
       }
 
-      if (!fse.existsSync(chunksDir)) {
-        await fse.mkdirs(chunksDir);
+      if (!fse.existsSync(chunkDir)) {
+        await fse.mkdirs(chunkDir);
       }
 
       await fse.move(chunk.path, chunkPath);

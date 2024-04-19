@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { handleUpload } from './upload.js';
 import { handleMerge } from './merge.js';
+import { handleVerify } from './verify.js';
 
 const server = http.createServer();
 
@@ -26,10 +27,10 @@ server.on('request', async (req, res) => {
       return;
     }
 
-    // if (req.url == '/verify') {
-    //   await ctrl.handleVerify(req, res);
-    //   return;
-    // }
+    if (req.url == '/verify') {
+      await handleVerify(req, res);
+      return;
+    }
   }
 
   // @ts-ignore

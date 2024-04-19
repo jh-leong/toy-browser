@@ -1,13 +1,10 @@
 import path from 'node:path';
 import fse from 'fs-extra';
 import multiparty from 'multiparty';
-import { getFilePath, resWrap } from './utils.js';
-import { UPLOAD_DIR } from './constants.js';
+import { getChunkDir, getFilePath, resWrap } from './utils.js';
 
 export async function handleMerge(req, res) {
-  const multipart = new multiparty.Form();
-
-  multipart.parse(req, async (err, field) => {
+  new multiparty.Form().parse(req, async (err, field) => {
     if (err) {
       console.log(err);
       return;
@@ -19,7 +16,7 @@ export async function handleMerge(req, res) {
 
     const chunkSize = Number(_chunkSize);
     const filePath = getFilePath(filename, fileHash);
-    const chunkDir = path.resolve(UPLOAD_DIR, fileHash);
+    const chunkDir = getChunkDir(fileHash);
 
     console.warn('🚀\n merge:', {
       fileHash,

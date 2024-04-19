@@ -56,7 +56,9 @@ async function handleUpload() {
 
   loading.value = true;
 
-  await doUploadFlow(file, { onProgress, onChunkComplete });
+  const ret = await doUploadFlow(file, { onProgress, onChunkComplete });
+
+  if (ret?.uploaded) progressComp.value?.completeProgress();
 
   loading.value = false;
 }

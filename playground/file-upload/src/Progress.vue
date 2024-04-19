@@ -25,7 +25,11 @@ const props = withDefaults(defineProps<Props>(), {
   progressMap: () => ({}),
 });
 
-defineExpose({ init, resetProgress });
+defineExpose({
+  init,
+  resetProgress,
+  completeProgress,
+});
 
 const GROUP_SIZE = 406;
 
@@ -91,6 +95,12 @@ function init(hashKeys: string[]) {
 function resetProgress() {
   group.value.forEach((item) => {
     item.class = ProgressStateClass.PENDING;
+  });
+}
+
+function completeProgress() {
+  group.value.forEach((item) => {
+    item.class = ProgressStateClass.DONE;
   });
 }
 
