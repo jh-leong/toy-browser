@@ -54,11 +54,17 @@ const group = ref<GroupItem[]>(
 
 const connection = ref<Array<[string[], GroupItem[]]>>([]);
 
+let needUpdate = false;
 watch(
   () => props.progressMap,
   () => {
-    // todo yieldToMain ?
-    updateProgressState();
+    needUpdate = true;
+    // yield to main
+    requestAnimationFrame(() => {
+      if (!needUpdate) return;
+      updateProgressState();
+      needUpdate = false;
+    });
   }
 );
 
