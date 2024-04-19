@@ -34,10 +34,17 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ChunkUploadProgress, FileChunk, doUploadFlow } from '@/upload';
+import {
+  ChunkUploadProgress,
+  FileChunk,
+  FileUploader,
+  UploadState,
+} from '@/upload';
 import Progress from './Progress.vue';
 
 const files = ref<File[]>([]);
+
+let fileUploader: FileUploader;
 
 function onFileChange(e: any) {
   const [file] = e.target.files;
@@ -45,6 +52,7 @@ function onFileChange(e: any) {
 
   console.log('[ file ]:', file);
 
+  fileUploader = new FileUploader(file);
   files.value = [file];
   progressComp.value?.resetProgress();
 }
@@ -52,15 +60,23 @@ function onFileChange(e: any) {
 const loading = ref(false);
 
 async function handleUpload() {
-  const file = files.value[0];
+  try {
+    loading.value = true;
 
-  loading.value = true;
+    // const file = files.value[0];
+    // const ret = await doUploadFlow(file, { onProgress, onChunkComplete });
+    // if (ret?.uploaded) progressComp.value?.completeProgress();
 
-  const ret = await doUploadFlow(file, { onProgress, onChunkComplete });
+    await fileUploader.upload({ onProgress, onChunkComplete });
 
-  if (ret?.uploaded) progressComp.value?.completeProgress();
-
-  loading.value = false;
+    if (fileUploader.state === UploadState.SUCCESS) {
+      progressComp.value?.completeProgress();
+    }
+  } catch (err) {
+    console.error('[ handleUpload ]:', err);
+  } finally {
+    loading.value = false;
+  }
 }
 
 const progressComp = ref();

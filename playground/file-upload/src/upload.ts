@@ -19,30 +19,102 @@ interface UploadOption {
   ) => void;
 }
 
-interface UploadRes {
-  /** true: 已上传 */
-  uploaded: boolean;
+export enum UploadState {
+  UPLOADED,
+  PENDING,
+  UPLOADING,
+  PAUSED,
+  SUCCESS,
+  FAILED,
+}
+
+export class FileUploader {
+  private file: File;
+
+  state = UploadState.PENDING;
+  fileHash = '';
+  chunkSize = 0;
+  chunks: FileChunk[] = [];
+  uploadedChunks: string[] = [];
+  onProgress: (chunkHash: string, percent: number) => void = () => void 0;
+
+  constructor(file: File) {
+    this.file = file;
+  }
+
+  get filename() {
+    return this.file.name;
+  }
+
+  async upload(options: UploadOption) {
+    const { uploaded, chunks, chunkSize, fileHash, uploadedChunks } =
+      await prepareUpload(this.file);
+
+    Object.assign(this, {
+      chunks,
+      chunkSize,
+      fileHash,
+      uploadedChunks,
+      options,
+    });
+
+    if (uploaded) {
+      this.state = UploadState.UPLOADED;
+      return;
+    }
+
+    const { handler: onProgress, progress } = getProgressHandler(
+      chunks,
+      options.onProgress
+    );
+    this.onProgress = onProgress;
+
+    options.onChunkComplete?.(chunks, progress);
+
+    // 4. 分片上传
+    await this.doChunksUpload();
+
+    // 5. 合并文件
+    await this.doMerge();
+
+    this.onUploadSuccess();
+  }
+
+  onUploadSuccess() {
+    this.state = UploadState.SUCCESS;
+  }
+
+  async doMerge() {
+    if (this.state !== UploadState.UPLOADING) return;
+
+    await doMerge({
+      filename: this.filename,
+      fileHash: this.fileHash,
+      chunkSize: this.chunkSize,
+    });
+  }
+
+  async doChunksUpload() {
+    this.state = UploadState.UPLOADING;
+
+    await doChunksUpload({
+      chunks: this.chunks,
+      fileHash: this.fileHash,
+      filename: this.filename,
+      onProgress: this.onProgress,
+    });
+  }
 }
 
 export async function doUploadFlow(
   file: File,
   options: UploadOption = {}
-): Promise<UploadRes | undefined> {
-  const chunkSize = getChunkSize(file.size);
+): Promise<UploadFileInfo | undefined> {
+  const uploadFileInfo = await prepareUpload(file);
 
-  // 1. 计算 hash
-  const fileHash = await calculateHashSample(file, chunkSize);
+  if (uploadFileInfo.uploaded) return uploadFileInfo;
 
-  // 2. 校验文件是否已上传
-  const { uploaded, uploadedChunks } = await verifyFile(file.name, fileHash);
-  if (uploaded) return { uploaded: true };
-
-  // 3. 分块
-  const chunks: FileChunk[] = createFileChunk({
-    file,
-    size: chunkSize,
-    fileHash,
-  });
+  const { chunks, chunkSize, fileHash } = uploadFileInfo;
 
   const { handler: onProgress, progress } = getProgressHandler(
     chunks,
@@ -57,6 +129,49 @@ export async function doUploadFlow(
 
   // 5. 合并文件
   await doMerge({ filename, fileHash, chunkSize });
+}
+
+interface UploadFileInfo {
+  chunks: FileChunk[];
+  chunkSize: number;
+  fileHash: string;
+  uploadedChunks: string[];
+  uploaded: boolean;
+}
+
+async function prepareUpload(file: File): Promise<UploadFileInfo> {
+  const ret: UploadFileInfo = {
+    chunks: [],
+    chunkSize: 0,
+    fileHash: '',
+    uploadedChunks: [],
+    uploaded: false,
+  };
+
+  ret.chunkSize = getChunkSize(file.size);
+
+  // 1. 计算 hash
+  ret.fileHash = await calculateHashSample(file, ret.chunkSize);
+
+  // 2. 校验文件是否已上传
+  const { uploaded, uploadedChunks } = await verifyFile(
+    file.name,
+    ret.fileHash
+  );
+
+  ret.uploaded = uploaded;
+  ret.uploadedChunks = uploadedChunks;
+
+  if (uploaded) return ret;
+
+  // 3. 分块
+  ret.chunks = createFileChunk({
+    file,
+    size: ret.chunkSize,
+    fileHash: ret.fileHash,
+  });
+
+  return ret;
 }
 
 async function verifyFile(filename: string, fileHash: string) {
@@ -101,7 +216,7 @@ async function doChunksUpload({
   chunks: FileChunk[];
   fileHash: string;
   filename: string;
-  onProgress: (chunkHash: string, percent: number) => void;
+  onProgress?: FileUploader['onProgress'];
 }) {
   // todo 失败自动重传
 
@@ -176,7 +291,7 @@ interface UploadData {
   chunk: FileChunk;
   filename: string;
   fileHash: string;
-  onProgress: (chunkHash: string, percent: number) => void;
+  onProgress?: (chunkHash: string, percent: number) => void;
 }
 
 async function doUpload({ fileHash, filename, chunk, onProgress }: UploadData) {
@@ -187,10 +302,12 @@ async function doUpload({ fileHash, filename, chunk, onProgress }: UploadData) {
   formData.append('filename', filename);
 
   await post('/upload', formData, {
-    onProgress: (e) => {
-      const progress = parseInt(String((e.loaded / e.total) * 100));
-      onProgress(chunk.chunkHash, progress);
-    },
+    onProgress: onProgress
+      ? (e) => {
+          const progress = parseInt(String((e.loaded / e.total) * 100));
+          onProgress(chunk.chunkHash, progress);
+        }
+      : undefined,
   });
 }
 
