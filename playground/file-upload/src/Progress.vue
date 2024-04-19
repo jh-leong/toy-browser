@@ -5,7 +5,7 @@
     <div
       v-for="(item, index) in group"
       :class="[
-        'progress_item h-full rounded-[2px] transition-colors',
+        'progress_item h-full rounded-[2px] transition-colors duration-300',
         item.class,
       ]"
       :key="index"
