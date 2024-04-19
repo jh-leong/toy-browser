@@ -21,14 +21,24 @@
       ></Progress>
     </label>
 
-    <button
-      class="btn btn-primary mt-[24px] w-[180px]"
-      :disabled="!files.length || loading"
-      @click="handleUpload"
-    >
-      <span v-if="loading" class="loading loading-spinner"></span>
-      Upload
-    </button>
+    <div class="_center mt-[24px]">
+      <button
+        class="btn btn-primary w-[180px]"
+        :disabled="!files.length || loading"
+        @click="handleUpload"
+      >
+        <span v-if="loading" class="loading loading-spinner"></span>
+        Upload
+      </button>
+
+      <button
+        class="btn btn-neutral w-[180px] ml-[48px]"
+        :disabled="!loading"
+        @click="pauseUpload"
+      >
+        Cancel
+      </button>
+    </div>
   </div>
 </template>
 
@@ -69,7 +79,7 @@ async function handleUpload() {
 
     await fileUploader.upload({ onProgress, onChunkComplete });
 
-    if (fileUploader.state === UploadState.SUCCESS) {
+    if (fileUploader.state === UploadState.UPLOADED) {
       progressComp.value?.completeProgress();
     }
   } catch (err) {
@@ -77,6 +87,11 @@ async function handleUpload() {
   } finally {
     loading.value = false;
   }
+}
+
+function pauseUpload() {
+  fileUploader.pause();
+  loading.value = false;
 }
 
 const progressComp = ref();

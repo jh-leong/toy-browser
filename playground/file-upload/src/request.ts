@@ -23,12 +23,17 @@ const BASE_URL = 'http://localhost:3000';
 //   }
 // }
 
-interface RequestConfig {
+export interface CusAbortController {
+  abort: () => void;
+}
+
+export interface RequestConfig {
   url: string;
   data: any;
   method?: 'get' | 'post' | 'put' | 'delete'; // Add other HTTP methods as needed
   headers?: Record<string, string>;
   onProgress?: (event: any) => any; // Replace 'any' with the actual event type if known
+  abortController?: CusAbortController;
 }
 
 export function request({
@@ -37,6 +42,7 @@ export function request({
   method = 'post',
   headers = {},
   onProgress = (e: any) => e,
+  abortController,
 }: RequestConfig) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -50,6 +56,10 @@ export function request({
     );
 
     xhr.send(data);
+
+    if (abortController) {
+      abortController.abort = () => xhr.abort();
+    }
 
     xhr.onreadystatechange = (e: any) => {
       if (xhr.readyState === 4) {

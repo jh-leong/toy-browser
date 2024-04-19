@@ -1,5 +1,5 @@
 import SparkMD5 from 'spark-md5';
-import { post } from '@/request';
+import { CusAbortController, RequestConfig, post } from '@/request';
 import { flushJobs } from '@/utils';
 
 export interface FileChunk {
@@ -37,6 +37,7 @@ export class FileUploader {
   chunks: FileChunk[] = [];
   uploadedChunks: string[] = [];
   onProgress: (chunkHash: string, percent: number) => void = () => void 0;
+  abortList: CusAbortController[] = [];
 
   constructor(file: File) {
     this.file = file;
@@ -102,7 +103,13 @@ export class FileUploader {
       fileHash: this.fileHash,
       filename: this.filename,
       onProgress: this.onProgress,
+      abortList: this.abortList,
     });
+  }
+
+  pause() {
+    this.state = UploadState.PAUSED;
+    this.abortList.forEach((ctrl) => ctrl.abort());
   }
 }
 
@@ -212,17 +219,21 @@ async function doChunksUpload({
   fileHash,
   filename,
   onProgress,
+  abortList,
 }: {
   chunks: FileChunk[];
   fileHash: string;
   filename: string;
   onProgress?: FileUploader['onProgress'];
+  abortList?: CusAbortController[];
 }) {
   // todo 失败自动重传
 
-  const jobs = chunks.map(
-    (chunk) => () => doUpload({ chunk, filename, fileHash, onProgress })
-  );
+  const jobs = chunks.map((chunk) => () => {
+    const abortController = { abort: () => void 0 };
+    abortList?.push(abortController);
+    return doUpload({ chunk, filename, fileHash, onProgress, abortController });
+  });
 
   await flushJobs(jobs, { limit: 6 });
 }
@@ -291,10 +302,17 @@ interface UploadData {
   chunk: FileChunk;
   filename: string;
   fileHash: string;
-  onProgress?: (chunkHash: string, percent: number) => void;
+  onProgress?: FileUploader['onProgress'];
+  abortController?: CusAbortController;
 }
 
-async function doUpload({ fileHash, filename, chunk, onProgress }: UploadData) {
+async function doUpload({
+  fileHash,
+  filename,
+  chunk,
+  onProgress,
+  abortController,
+}: UploadData) {
   const formData = new FormData();
   formData.append('chunk', chunk.file);
   formData.append('hash', chunk.chunkHash);
@@ -302,6 +320,7 @@ async function doUpload({ fileHash, filename, chunk, onProgress }: UploadData) {
   formData.append('filename', filename);
 
   await post('/upload', formData, {
+    abortController,
     onProgress: onProgress
       ? (e) => {
           const progress = parseInt(String((e.loaded / e.total) * 100));
