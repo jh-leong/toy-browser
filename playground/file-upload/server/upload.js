@@ -7,10 +7,8 @@ export async function handleUpload(req, res) {
 
   multipart.parse(req, async (err, field, file) => {
     try {
-      if (err) {
-        console.log(err);
-        return;
-      }
+      if (err) throw new Error(err);
+
       const [chunk] = file.chunk;
       const [hash] = field.hash;
       const [filename] = field.filename;
@@ -29,15 +27,15 @@ export async function handleUpload(req, res) {
       //   chunkPath,
       //   chunksDir,
       // };
-      console.warn('🚀 handleUpload:', hash);
 
-      // if (Math.random() < 0.5) {
-      //   // 概率报错
-      //   console.log('概率报错了');
-      //   res.statusCode = 500;
-      //   res.end();
-      //   return;
-      // }
+      if (Math.random() < 0.5) {
+        console.log('概率报错: ', hash);
+        res.statusCode = 500;
+        res.end();
+        return;
+      }
+
+      console.warn('🚀 handleUpload:', hash);
 
       // 文件存在直接返回
       if (fse.existsSync(filePath)) {
@@ -58,7 +56,7 @@ export async function handleUpload(req, res) {
 
       res.end(resWrap({ msg: 'received file chunk' }));
     } catch (err) {
-      console.log('catch error:', err);
+      console.log('[ handleUpload ]: ', err);
       res.statusCode = 500;
       res.end();
       return;

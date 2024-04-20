@@ -1,6 +1,6 @@
 import SparkMD5 from 'spark-md5';
 import { CusAbortController, post } from '@/request';
-import { flushJobs } from '@/utils';
+import { flushJobsWithRetry } from '@/utils';
 
 export interface FileChunk {
   file: Blob;
@@ -32,7 +32,6 @@ export class FileUploader {
   fileHash = '';
   chunkSize = 0;
   chunks: FileChunk[] = [];
-  uploadedChunks: string[] = [];
   abortList: CusAbortController[] = [];
   progressMap: ChunkUploadProgress = {};
   options: UploadOption = {};
@@ -57,15 +56,10 @@ export class FileUploader {
     this.fileHash = await calculateHashSample(this.file, this.chunkSize);
 
     // 2. 校验文件是否已上传
-    const { uploaded, uploadedChunks } = await verifyFile(
-      this.filename,
-      this.fileHash
-    );
+    const { uploadedChunks } = await this.verifyFile();
 
-    if (uploaded) {
-      this.state = UploadState.UPLOADED;
-      return;
-    }
+    // 已上传, 秒传
+    if (this.state === UploadState.UPLOADED) return;
 
     // 3. 分块
     this.chunks = createFileChunk({
@@ -73,6 +67,7 @@ export class FileUploader {
       size: this.chunkSize,
       fileHash: this.fileHash,
     });
+
     options.onChunkComplete?.(this.chunks);
 
     // 4. 分片上传
@@ -94,11 +89,21 @@ export class FileUploader {
   async resume() {
     if (this.state !== UploadState.PAUSED) return;
 
-    const { uploadedChunks } = await verifyFile(this.filename, this.fileHash);
-    this.uploadedChunks = uploadedChunks;
+    const { uploadedChunks } = await this.verifyFile();
 
     await this.doChunksUpload(uploadedChunks);
     await this.doMerge();
+  }
+
+  private async verifyFile() {
+    const { uploaded, uploadedChunks } = await verifyFile(
+      this.filename,
+      this.fileHash
+    );
+
+    if (uploaded) this.state = UploadState.UPLOADED;
+
+    return { uploaded, uploadedChunks };
   }
 
   private onUploadSuccess() {
@@ -118,26 +123,31 @@ export class FileUploader {
   }
 
   private async doChunksUpload(uploadedChunks: string[]) {
-    this.state = UploadState.UPLOADING;
+    try {
+      this.state = UploadState.UPLOADING;
 
-    const seen = new Set(uploadedChunks);
+      const seen = new Set(uploadedChunks);
 
-    this.initProgress(seen);
+      this.initProgress(seen);
 
-    const onChunkProgress = (chunkHash: string, percent: number) => {
-      this.progressMap[chunkHash] = percent;
-      this.options?.onProgress?.(this.progressMap);
-    };
+      const onChunkProgress = (chunkHash: string, percent: number) => {
+        this.progressMap[chunkHash] = percent;
+        this.options?.onProgress?.(this.progressMap);
+      };
 
-    const chunks = this.chunks.filter((i) => !seen.has(i.chunkHash));
+      const chunks = this.chunks.filter((i) => !seen.has(i.chunkHash));
 
-    await doChunksUpload({
-      chunks,
-      fileHash: this.fileHash,
-      filename: this.filename,
-      abortList: this.abortList,
-      onProgress: onChunkProgress,
-    });
+      await doChunksUpload({
+        chunks,
+        fileHash: this.fileHash,
+        filename: this.filename,
+        abortList: this.abortList,
+        onProgress: onChunkProgress,
+      });
+    } catch (err) {
+      this.syncProgress();
+      throw err;
+    }
   }
 
   private initProgress(seen: Set<string>) {
@@ -146,6 +156,17 @@ export class FileUploader {
       return acc;
     }, {});
     this.options?.onProgress?.(this.progressMap);
+  }
+
+  private async syncProgress() {
+    let seen = new Set<string>();
+    try {
+      const { uploadedChunks } = await this.verifyFile();
+      seen = new Set(uploadedChunks);
+    } catch (err) {
+      console.error('[ syncProgress ]: ', err);
+    }
+    this.initProgress(seen);
   }
 }
 
@@ -168,28 +189,32 @@ function getChunkSize(fileSize: number) {
   return Math.ceil(Math.min(fileSize, MAX_CHUNK_SIZE));
 }
 
+interface ChunksUploadConfig {
+  chunks: FileChunk[];
+  fileHash: string;
+  filename: string;
+  limit?: number;
+  retry?: number;
+  onProgress?: OnChunkProgress;
+  abortList?: CusAbortController[];
+}
+
 async function doChunksUpload({
   chunks,
   fileHash,
   filename,
   onProgress,
   abortList,
-}: {
-  chunks: FileChunk[];
-  fileHash: string;
-  filename: string;
-  onProgress?: OnChunkProgress;
-  abortList?: CusAbortController[];
-}) {
-  // todo 失败自动重传
-
+  retry = 3,
+  limit = 6,
+}: ChunksUploadConfig) {
   const jobs = chunks.map((chunk) => () => {
     const abortController = { abort: () => void 0 };
     abortList?.push(abortController);
     return doUpload({ chunk, filename, fileHash, onProgress, abortController });
   });
 
-  await flushJobs(jobs, { limit: 6 });
+  await flushJobsWithRetry(jobs, { retry, limit });
 }
 
 function createFileChunk({

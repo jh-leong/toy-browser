@@ -68,7 +68,7 @@ export function request({
             data: e.target?.response,
           });
         } else if (xhr.status === 500) {
-          reject('报错了 大哥');
+          reject('[ xhr ] 500');
         }
       }
     };
@@ -76,19 +76,15 @@ export function request({
 }
 
 export async function post(url: string, data, config?: Partial<RequestConfig>) {
-  try {
-    const ret: any = await request({
-      data,
-      url: BASE_URL + url,
-      ...config,
-    });
+  const ret: any = await request({
+    data,
+    url: BASE_URL + url,
+    ...config,
+  });
 
-    const retData = JSON.parse(ret.data);
+  const retData = JSON.parse(ret.data);
 
-    console.log('[ post ]: ', url, retData);
+  console.log('[ post ]: ', url, retData);
 
-    return retData;
-  } catch (err) {
-    console.error('[ Request Failed ]: ', err);
-  }
+  return retData;
 }

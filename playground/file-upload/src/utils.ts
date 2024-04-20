@@ -3,7 +3,7 @@ interface FlushJobOption {
   allowError?: boolean;
 }
 
-type AnyAsyncFunction = (...args: any[]) => Promise<any>;
+export type AnyAsyncFunction = (...args: any[]) => Promise<any>;
 
 export async function flushJobs<T extends AnyAsyncFunction>(
   jobs: T[],
@@ -48,4 +48,27 @@ export async function flushJobs<T extends AnyAsyncFunction>(
       reject(err);
     }
   });
+}
+
+export async function flushJobsWithRetry(
+  jobs: AnyAsyncFunction[],
+  options: FlushJobOption & { retry: number },
+  _retryCount = 0
+) {
+  const { retry = 0 } = options;
+
+  const { errors } = await flushJobs(jobs, {
+    ...options,
+    allowError: _retryCount < retry,
+  });
+
+  if (errors.length) {
+    console.log('[ flushJobsWithRetry ] _retryCount: ', _retryCount, errors);
+
+    await flushJobsWithRetry(
+      errors.map((i) => i.job),
+      options,
+      _retryCount + 1
+    );
+  }
 }
