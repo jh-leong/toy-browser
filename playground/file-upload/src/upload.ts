@@ -1,13 +1,13 @@
-import SparkMD5 from 'spark-md5';
-import { CusAbortController, post } from '@/request';
 import { flushJobsWithRetry } from '@/utils';
+import { CusAbortController, post } from '@/request';
+import { calcFileHash } from '@/hash';
 
 export interface FileChunk {
   file: Blob;
   chunkHash: string;
 }
 
-const MAX_CHUNK_SIZE = 0.2 * 1024 * 1024;
+const MAX_CHUNK_SIZE = 5 * 1024 * 1024;
 
 export type ChunkUploadProgress = Record<string, number>;
 
@@ -36,8 +36,9 @@ export class FileUploader {
   progressMap: ChunkUploadProgress = {};
   options: UploadOption = {};
 
-  constructor(file: File) {
+  constructor(file: File, options: UploadOption = {}) {
     this.file = file;
+    this.options = options;
   }
 
   get filename() {
@@ -48,27 +49,36 @@ export class FileUploader {
     return this.file.size;
   }
 
-  async upload(options: UploadOption) {
-    this.options = options;
+  async upload() {
+    this.state = UploadState.PENDING;
+
     this.chunkSize = getChunkSize(this.fileSize);
 
     // 1. 计算 hash
-    this.fileHash = await calculateHashSample(this.file, this.chunkSize);
+    const timeKey = '[ calc hash ]';
+    console.time(timeKey);
+    this.fileHash = await calcFileHash(this.file, this.chunkSize);
+    console.timeEnd(timeKey);
 
     // 2. 校验文件是否已上传
     const { uploadedChunks } = await this.verifyFile();
 
     // 已上传, 秒传
+    // @ts-ignore
     if (this.state === UploadState.UPLOADED) return;
 
     // 3. 分块
+    //  - 测试 4.94GB 耗时 91ms
+    const chunksTimeKey = '[ create chunks ]';
+    console.time(chunksTimeKey);
     this.chunks = createFileChunk({
       file: this.file,
       size: this.chunkSize,
       fileHash: this.fileHash,
     });
+    console.timeEnd(chunksTimeKey);
 
-    options.onChunkComplete?.(this.chunks);
+    this.options.onChunkComplete?.(this.chunks);
 
     // 4. 分片上传
     await this.doChunksUpload(uploadedChunks);
@@ -112,6 +122,12 @@ export class FileUploader {
     this.chunks = [];
   }
 
+  private onUploadFailed(err: any) {
+    this.state = UploadState.FAILED;
+    this.syncProgress();
+    throw err;
+  }
+
   private async doMerge() {
     if (this.state !== UploadState.UPLOADING) return;
 
@@ -145,8 +161,7 @@ export class FileUploader {
         onProgress: onChunkProgress,
       });
     } catch (err) {
-      this.syncProgress();
-      throw err;
+      this.onUploadFailed(err);
     }
   }
 
@@ -206,7 +221,7 @@ async function doChunksUpload({
   onProgress,
   abortList,
   retry = 3,
-  limit = 6,
+  limit = 3,
 }: ChunksUploadConfig) {
   const jobs = chunks.map((chunk) => () => {
     const abortController = { abort: () => void 0 };
@@ -238,43 +253,6 @@ function createFileChunk({
   }
 
   return chunks;
-}
-
-async function calculateHashSample(
-  file: File,
-  chunkSize: number
-): Promise<string> {
-  // todo yieldToMain ?
-  return new Promise((resolve) => {
-    const spark = new SparkMD5.ArrayBuffer();
-    const reader = new FileReader();
-    const chunks = [file.slice(0, chunkSize)];
-
-    let cur = chunkSize;
-    while (cur < file.size) {
-      const next = cur + chunkSize;
-
-      if (next >= file.size) {
-        chunks.push(file.slice(cur));
-      } else {
-        const mid = cur + ~~(next / 2);
-        chunks.push(
-          file.slice(cur, cur + 2),
-          file.slice(mid, mid + 2),
-          file.slice(next - 2, next)
-        );
-      }
-
-      cur = next;
-    }
-
-    reader.readAsArrayBuffer(new Blob(chunks));
-
-    reader.onload = (e: any) => {
-      spark.append(e.target.result);
-      resolve(spark.end());
-    };
-  });
 }
 
 type OnChunkProgress = (chunkHash: string, percent: number) => void;
