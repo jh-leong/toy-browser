@@ -1,13 +1,17 @@
 <template>
   <div class="h-[100vh] flex items-center justify-center flex-col">
-    <label class="w-[600px] block cursor-pointer">
+    <label ref="fileUploadContainer" class="w-[600px] block cursor-pointer">
       <div class="_between mb-[12px]">
-        <input
-          class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
-          type="file"
-          :disabled="loading"
-          @change="onFileChange"
-        />
+        <div class="text-slate-500">
+          <input
+            class="text-[0] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+            type="file"
+            :disabled="loading"
+            @change="onFileChange"
+          />
+
+          <span class="text-sm ml-[12px]">{{ filename }}</span>
+        </div>
 
         <div class="text-color-[#868d96] text-[14px]">
           Click or Drag files here to upload ↓
@@ -43,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import {
   ChunkUploadProgress,
   FileChunk,
@@ -56,12 +60,47 @@ const files = ref<File[]>([]);
 
 let fileUploader: FileUploader;
 
+onMounted(() => {
+  bindingDragEvents();
+});
+
+const filename = computed(() => {
+  const name = files.value[0]?.name;
+  if (!name) return 'No file chosen';
+  if (name.length < 20) return name;
+  return `${name.slice(0, 10)}...${name.slice(-10)}`;
+});
+
+const fileUploadContainer = ref<Element>();
+function bindingDragEvents() {
+  const container = fileUploadContainer.value!;
+
+  ['dragenter', 'dragover', 'drop'].forEach((eventName) => {
+    container.addEventListener(
+      eventName,
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (eventName === 'drop') {
+          const [file] = (e as any).dataTransfer.files;
+          if (!file) return;
+          prepareUpload(file);
+        }
+      },
+      true
+    );
+  });
+}
+
 function onFileChange(e: any) {
   const [file] = e.target.files;
   if (!file) return;
+  prepareUpload(file);
+}
 
+function prepareUpload(file: File) {
   console.log('[ file ]:', file);
-
   fileUploader = new FileUploader(file);
   files.value = [file];
   progressComp.value?.resetProgress();

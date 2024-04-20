@@ -63,12 +63,12 @@ export function request({
 
     xhr.onreadystatechange = (e: any) => {
       if (xhr.readyState === 4) {
+        const response = e.target?.response;
+
         if (xhr.status === 200) {
-          resolve({
-            data: e.target?.response,
-          });
+          resolve(response);
         } else if (xhr.status === 500) {
-          reject('[ xhr ] 500');
+          reject(response);
         }
       }
     };
@@ -81,10 +81,15 @@ export async function post(url: string, data, config?: Partial<RequestConfig>) {
     url: BASE_URL + url,
     ...config,
   });
+  const parseRet = parseJSON(ret);
+  console.log('[ post ]: ', url, parseRet);
+  return parseRet;
+}
 
-  const retData = JSON.parse(ret.data);
-
-  console.log('[ post ]: ', url, retData);
-
-  return retData;
+function parseJSON(json: string) {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return json;
+  }
 }

@@ -30,9 +30,10 @@ export async function handleUpload(req, res) {
 
       const errorRate = 0.5;
       if (Math.random() < errorRate) {
-        console.log(errorRate, ' 概率报错: ', hash);
+        const msg = `${errorRate} 概率报错: ${hash}`;
+        console.log(msg);
         res.statusCode = 500;
-        res.end();
+        res.end(resWrap({ msg }));
         return;
       }
 
