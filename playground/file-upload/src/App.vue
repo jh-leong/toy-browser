@@ -82,11 +82,20 @@ async function handleUpload() {
     if (fileUploader.state === UploadState.UPLOADED) {
       progressComp.value?.completeProgress();
     }
+
+    cusAlert('Upload success!');
   } catch (err) {
+    cusAlert('Upload failed!');
     console.error('[ handleUpload ]:', err);
   } finally {
     loading.value = false;
   }
+}
+
+function cusAlert(msg: string) {
+  setTimeout(() => {
+    alert(msg);
+  }, 300);
 }
 
 function pauseUpload() {

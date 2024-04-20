@@ -28,8 +28,9 @@ export async function handleUpload(req, res) {
       //   chunksDir,
       // };
 
-      if (Math.random() < 0.5) {
-        console.log('概率报错: ', hash);
+      const errorRate = 0.5;
+      if (Math.random() < errorRate) {
+        console.log(errorRate, ' 概率报错: ', hash);
         res.statusCode = 500;
         res.end();
         return;
