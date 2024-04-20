@@ -1,6 +1,9 @@
 <template>
   <div class="h-[100vh] flex items-center justify-center flex-col">
-    <label ref="fileUploadContainer" class="w-[600px] block cursor-pointer">
+    <label
+      ref="fileUploadContainer"
+      class="w-[600px] block cursor-pointer relative"
+    >
       <div class="_between mb-[12px]">
         <div class="text-slate-500">
           <input
@@ -13,8 +16,11 @@
           <span class="text-sm ml-[12px]">{{ filename }}</span>
         </div>
 
-        <div class="text-color-[#868d96] text-[14px]">
-          Click or Drag files here to upload ↓
+        <div class="text-color-[#868d96] text-[14px] flex">
+          Click or Drag files here to upload
+          <div :class="['ml-[8px]', { 'animate-bounce': !files.length }]">
+            ↓
+          </div>
         </div>
       </div>
 
@@ -23,12 +29,16 @@
         ref="progressComp"
         :progressMap="progressMap"
       ></Progress>
+
+      <div class="absolute text-[12px] text-[#868d96] mt-[6px] right-[2px]">
+        {{ fileSize }}
+      </div>
     </label>
 
     <div class="_center mt-[24px]">
       <button
         class="btn btn-primary w-[180px]"
-        :disabled="!files.length || loading"
+        :disabled="!files.length || loading || !changed"
         @click="handleUpload"
       >
         <span v-if="loading" class="loading loading-spinner"></span>
@@ -68,7 +78,19 @@ const filename = computed(() => {
   const name = files.value[0]?.name;
   if (!name) return 'No file chosen';
   if (name.length < 20) return name;
-  return `${name.slice(0, 10)}...${name.slice(-10)}`;
+  return `${name.slice(0, 8)}...${name.slice(-10)}`;
+});
+
+const fileSize = computed(() => {
+  let size = files.value[0]?.size;
+  if (!size) return '';
+  const unit = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  while (size > 1024 && i < unit.length) {
+    size /= 1024;
+    i++;
+  }
+  return `${size.toFixed(2)} ${unit[i]}`;
 });
 
 const fileUploadContainer = ref<Element>();
@@ -101,11 +123,13 @@ function onFileChange(e: any) {
 
 function prepareUpload(file: File) {
   console.log('[ file ]:', file);
-  fileUploader = new FileUploader(file);
   files.value = [file];
+  changed.value = true;
+  fileUploader = new FileUploader(file, { onProgress, onChunkComplete });
   progressComp.value?.resetProgress();
 }
 
+const changed = ref(false);
 const loading = ref(false);
 
 async function handleUpload() {
@@ -115,14 +139,16 @@ async function handleUpload() {
     if (fileUploader.state === UploadState.PAUSED) {
       await fileUploader.resume();
     } else {
-      await fileUploader.upload({ onProgress, onChunkComplete });
+      await fileUploader.upload();
     }
 
     if (fileUploader.state === UploadState.UPLOADED) {
       progressComp.value?.completeProgress();
+    } else if (fileUploader.state === UploadState.SUCCESS) {
+      cusAlert('Upload success!');
     }
 
-    cusAlert('Upload success!');
+    changed.value = false;
   } catch (err) {
     cusAlert('Upload failed!');
     console.error('[ handleUpload ]:', err);
@@ -158,6 +184,12 @@ function onProgress(map: ChunkUploadProgress) {
 ._center {
   display: flex;
   justify-content: center;
+  align-items: center;
+}
+
+._right {
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
 }
 

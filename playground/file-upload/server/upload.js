@@ -28,14 +28,14 @@ export async function handleUpload(req, res) {
       //   chunksDir,
       // };
 
-      const errorRate = 0.5;
-      if (Math.random() < errorRate) {
-        const msg = `${errorRate} 概率报错: ${hash}`;
-        console.log(msg);
-        res.statusCode = 500;
-        res.end(resWrap({ msg }));
-        return;
-      }
+      // const errorRate = 0.5;
+      // if (Math.random() < errorRate) {
+      //   const msg = `${errorRate} 概率报错: ${hash}`;
+      //   console.log(msg);
+      //   res.statusCode = 500;
+      //   res.end(resWrap({ msg }));
+      //   return;
+      // }
 
       console.warn('🚀 handleUpload:', hash);
 
