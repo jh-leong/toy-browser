@@ -17,18 +17,19 @@ interface UploadOption {
 }
 
 export enum UploadState {
-  UPLOADED,
+  INIT,
   PENDING,
   UPLOADING,
   PAUSED,
   SUCCESS,
   FAILED,
+  UPLOADED,
 }
 
 export class FileUploader {
   private file: File;
 
-  state = UploadState.PENDING;
+  state = UploadState.INIT;
   fileHash = '';
   chunkSize = 0;
   chunks: FileChunk[] = [];
@@ -90,6 +91,8 @@ export class FileUploader {
   }
 
   pause() {
+    if (this.state !== UploadState.UPLOADING) return;
+
     this.state = UploadState.PAUSED;
     this.abortList.forEach((ctrl) => ctrl.abort());
     // release abortList
@@ -99,10 +102,13 @@ export class FileUploader {
   async resume() {
     if (this.state !== UploadState.PAUSED) return;
 
+    this.state = UploadState.PENDING;
+
     const { uploadedChunks } = await this.verifyFile();
 
     await this.doChunksUpload(uploadedChunks);
     await this.doMerge();
+    this.onUploadSuccess();
   }
 
   private async verifyFile() {

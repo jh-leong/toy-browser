@@ -4,10 +4,17 @@
       ref="fileUploadContainer"
       class="w-[600px] block cursor-pointer relative"
     >
-      <div class="_between mb-[12px]">
+      <div class="_between mb-[8px]">
+        <div class="text-color-[#868d96] text-[14px] flex">
+          Click or Drag files here to upload
+          <div :class="['ml-[8px]', { 'animate-bounce': !files.length }]">
+            ↓
+          </div>
+        </div>
+
         <div class="text-slate-500">
           <input
-            class="text-[0] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+            class="opacity-0 absolute"
             type="file"
             :disabled="loading"
             @change="onFileChange"
@@ -15,27 +22,16 @@
 
           <span class="text-sm ml-[12px]">{{ filename }}</span>
         </div>
-
-        <div class="text-color-[#868d96] text-[14px] flex">
-          Click or Drag files here to upload
-          <div :class="['ml-[8px]', { 'animate-bounce': !files.length }]">
-            ↓
-          </div>
-        </div>
       </div>
 
       <Progress
-        class="!h-[300px]"
         ref="progressComp"
+        :fileSize="fileSize"
         :progressMap="progressMap"
       ></Progress>
-
-      <div class="absolute text-[12px] text-[#868d96] mt-[6px] right-[2px]">
-        {{ fileSize }}
-      </div>
     </label>
 
-    <div class="_center mt-[24px]">
+    <div class="_center mt-[16px]">
       <button
         class="btn btn-primary w-[180px]"
         :disabled="!files.length || loading || !changed"
@@ -47,7 +43,7 @@
 
       <button
         class="btn btn-neutral w-[180px] ml-[48px]"
-        :disabled="!loading"
+        :disabled="disabledCancel"
         @click="pauseUpload"
       >
         Cancel
@@ -68,7 +64,7 @@ import Progress from './Progress.vue';
 
 const files = ref<File[]>([]);
 
-let fileUploader: FileUploader;
+const fileUploader = ref<FileUploader>();
 
 onMounted(() => {
   bindingDragEvents();
@@ -76,21 +72,13 @@ onMounted(() => {
 
 const filename = computed(() => {
   const name = files.value[0]?.name;
-  if (!name) return 'No file chosen';
-  if (name.length < 20) return name;
-  return `${name.slice(0, 8)}...${name.slice(-10)}`;
+  if (!name) return '';
+  if (name.length < 30) return name;
+  return `${name.slice(0, 15)}...${name.slice(-15)}`;
 });
 
 const fileSize = computed(() => {
-  let size = files.value[0]?.size;
-  if (!size) return '';
-  const unit = ['B', 'KB', 'MB', 'GB'];
-  let i = 0;
-  while (size > 1024 && i < unit.length) {
-    size /= 1024;
-    i++;
-  }
-  return `${size.toFixed(2)} ${unit[i]}`;
+  return files.value[0]?.size;
 });
 
 const fileUploadContainer = ref<Element>();
@@ -125,35 +113,43 @@ function prepareUpload(file: File) {
   console.log('[ file ]:', file);
   files.value = [file];
   changed.value = true;
-  fileUploader = new FileUploader(file, { onProgress, onChunkComplete });
+  fileUploader.value = new FileUploader(file, { onProgress, onChunkComplete });
   progressComp.value?.resetProgress();
 }
 
 const changed = ref(false);
-const loading = ref(false);
+
+const uploaderState = computed(() => {
+  return fileUploader.value?.state;
+});
+
+const loading = computed(() => {
+  const state = fileUploader.value?.state;
+  return state === UploadState.UPLOADING || state === UploadState.PENDING;
+});
+
+const disabledCancel = computed(() => {
+  return fileUploader.value?.state !== UploadState.UPLOADING;
+});
 
 async function handleUpload() {
   try {
-    loading.value = true;
-
-    if (fileUploader.state === UploadState.PAUSED) {
-      await fileUploader.resume();
+    if (uploaderState.value === UploadState.PAUSED) {
+      await fileUploader.value?.resume();
     } else {
-      await fileUploader.upload();
+      await fileUploader.value?.upload();
     }
 
-    if (fileUploader.state === UploadState.UPLOADED) {
+    if (uploaderState.value === UploadState.UPLOADED) {
       progressComp.value?.completeProgress();
-    } else if (fileUploader.state === UploadState.SUCCESS) {
+    } else if (uploaderState.value === UploadState.SUCCESS) {
       cusAlert('Upload success!');
     }
 
     changed.value = false;
   } catch (err) {
-    cusAlert('Upload failed!');
+    cusAlert('Upload failed! Please try again.');
     console.error('[ handleUpload ]:', err);
-  } finally {
-    loading.value = false;
   }
 }
 
@@ -164,8 +160,7 @@ function cusAlert(msg: string) {
 }
 
 function pauseUpload() {
-  fileUploader.pause();
-  loading.value = false;
+  fileUploader.value?.pause();
 }
 
 const progressComp = ref();
@@ -180,29 +175,6 @@ function onProgress(map: ChunkUploadProgress) {
 }
 </script>
 
-<style scoped>
-._center {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-._right {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-._column {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-}
-
-._between {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+<style>
+@import './assets/common.scss';
 </style>

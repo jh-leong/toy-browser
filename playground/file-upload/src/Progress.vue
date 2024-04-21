@@ -1,28 +1,56 @@
 <template>
   <div
-    class="w-full h-full progress_wrap p-[10px] border border-solid border-[#31363c] rounded-[6px]"
+    class="w-full h-[300px] progress_wrap p-[11px] border border-solid border-[#31363c] rounded-[6px]"
   >
     <div
       v-for="(item, index) in group"
       :class="[
-        'progress_item h-full rounded-[2px] transition-colors duration-300',
+        'h-full rounded-[2px] transition-colors duration-300',
         item.class,
       ]"
       :key="index"
     ></div>
   </div>
+
+  <div class="p-[4px] _between text-[12px] text-[#868d96]">
+    <div class="">
+      {{ fileSize }}
+    </div>
+
+    <div class="_right gap-[4px]">
+      <span>Less</span>
+      <div
+        :class="['rounded-[2px] w-[10px] h-[10px]', ProgressStateClass.PENDING]"
+      ></div>
+      <div
+        :class="['rounded-[2px] w-[10px] h-[10px]', ProgressStateClass.STATE1]"
+      ></div>
+      <div
+        :class="['rounded-[2px] w-[10px] h-[10px]', ProgressStateClass.STATE2]"
+      ></div>
+      <div
+        :class="['rounded-[2px] w-[10px] h-[10px]', ProgressStateClass.STATE3]"
+      ></div>
+      <div
+        :class="['rounded-[2px] w-[10px] h-[10px]', ProgressStateClass.DONE]"
+      ></div>
+      <span>More Uploaded</span>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { ChunkUploadProgress } from '@/upload';
 
 interface Props {
   progressMap: ChunkUploadProgress;
+  fileSize?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   progressMap: () => ({}),
+  fileSize: 0,
 });
 
 defineExpose({
@@ -53,6 +81,18 @@ const group = ref<GroupItem[]>(
 );
 
 const connection = ref<Array<[string[], GroupItem[]]>>([]);
+
+const fileSize = computed(() => {
+  let size = props.fileSize;
+  if (!size) return '';
+  const unit = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  while (size > 1024 && i < unit.length) {
+    size /= 1024;
+    i++;
+  }
+  return `${size.toFixed(2)} ${unit[i]}`;
+});
 
 let needUpdate = false;
 watch(
