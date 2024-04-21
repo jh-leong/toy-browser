@@ -1,5 +1,96 @@
-# Feature
-
-- Vue 3.2, Vite 5, TypeScript
-- Tailwind, PostCSS, Sass
-- Vitest
+- 项目总结
+  - 熟悉前端二进制数据流操作
+    - 读取，写入，分 chunk
+  - Fetch API 和 XMLHttpRequest 熟悉
+    - 利用 `FormData Api` 传输 _FormData_ ，会自动使用 `Content-Type: multipart/form-data;` 以及自动处理二进制数据，还能传输表单数据
+  - 前端文件选择
+    - 自定义 input type=file 样式；文件名缩略展示，hover 效果
+    - 点击，拖拽
+  - 大文件 hash 计算：MD5 算法了解
+    - 使用 web worker，不阻塞主线程
+    - 算法优化：1. 全量 hash；2. 抽帧 hash
+    - 内存优化：大文件分块读取计算 hash，避免挤爆内存
+  - 文件秒传：根据文件 hash 校验服务端是否存在文件
+  - 分块上传
+    - 取消上传
+    - 进度控制
+    - 并发数限制；封装通用函数 `playground/file-upload/src/utils.ts > flushJobs`
+    - 错误重传；封装通用函数 `playground/file-upload/src/utils.ts > flushJobsWithRetry`
+  - 断点续传，跳过已上传的 chunk
+  - 熟悉 TailwindCSS 生态的几个库，简单的纯 CSS UI 组件和动画
+    - https://www.tailwindcss-animated.com/configurator.html
+    - https://tailwindcss.com/docs/animation#prefers-reduced-motion
+    - https://flowbite.com/docs/components/carousel/#animation
+    - https://daisyui.com/components/
+  - 文件预览
+    - 使用 `URL.createObjectURL()` 将 Blob 转换成临时链接，进行预览或下载
+    - 注意需要使用 `URL.revokeObjectURL()` 释放内存
+  - 用户体验
+    - 点阵图效果的 progress bar
+- 基础概念
+  - [Blob 数据类型](https://developer.mozilla.org/en-US/docs/Web/API/Blob)，Blob 是 [File](https://developer.mozilla.org/en-US/docs/Web/API/File) 的父类，浏览器封装的操作二进制数据 API；Blob 无法直接读取二进制数据
+    - https://zhuanlan.zhihu.com/p/500199997
+    - **不在内存中存储**，Blob 可以位于磁盘、高速缓存内存和其他不可用的位置
+  - [FileReader](https://developer.mozilla.org/en-US/docs/Web/API/FileReader)，读取操作 Blob 或者用户本地存储的二进制数据
+    - **会写入内存**
+    - 关于 [FileReader.result](https://developer.mozilla.org/en-US/docs/Web/API/FileReader/result) 的数据类型
+  - 关于 [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer)： [Deno bytes 模块全解析](https://mp.weixin.qq.com/s?__biz=MzI2MjcxNTQ0Nw==&mid=2247484317&idx=1&sn=c0b397b6bd5fdfced0c1bebc187a7c0d&chksm=ea47a2c5dd302bd37b285f65dd7a92df8ca1bc213465091e82a28be08ec5808b905e9fb69bec&scene=21#wechat_redirect)
+    - **存储在内存**
+  - [js-spark-md5](https://github.com/satazor/js-spark-md5) 计算 hash
+  - [Using files from web applications](https://developer.mozilla.org/en-US/docs/Web/API/File_API/Using_files_from_web_applications)
+  - 关于 `Content-Type`，当没显示设置时，XMLHttpRequest 和 Fetch 都会根据发送的内容自动设置
+    - 如果 `data` 是一个字符串，则默认为 `text/plain`
+    - 如果 `data` 是一个 FormData 对象，则默认为 `multipart/form-data`
+    - 如果 `data` 是一个 Blob 或 ArrayBuffer，则默认为 `application/octet-stream`
+    - 如果 `data` 是一个 Document，则默认为 `text/html`
+- Client
+  - [x] 选择文件，自定义 input 样式
+    - 隐藏 input 后如何调起选择文件？使用 `label` or `js dom.click()`
+    - [x] 文件缩略名，hover 完整文件名
+  - [x] fetch
+    - [x] fetch 发出请求
+    - [x] 处理 fetch 的响应
+  - [x] 文件 hash 计算
+    - [x] 算法优化：分 chunk 抽帧计算 hash
+      - 5GB 的 bench mark
+        - [ calc simple hash ]: 2654.94287109375 ms
+        - [ calc full hash ]: 59374.510986328125 ms
+    - [x] 根据 chunkSize 全量 hash
+      - [x] chunk blob 分批读取 hash
+        - `readAsArrayBuffer` 会写入内存，无法直接读取 5GB 的 Blob，需要分片读取
+    - ~~多线程优化：根据内核数量，创建多个 web worker 加速计算~~
+      - 不可行，MD5 算法不支持多线程计算
+    - [x] perf: 使用 webWorker 进行 hash 计算，不阻塞主线程
+  - [x] 分 chunk
+    - chunk 本地存储时会不会暂用内存？不会，Blob 不写入内存
+    - ~~perf: 分块完成后率先上传 ~~，实测没必要, 5GB+ 才 91ms
+    - [x] perf: 上传完成后释放 chunk
+  - [x] 进度条
+    - [x] 点阵图效果
+    - [x] perf: updateProgressState yield to main 减少不必要的执行
+      - 实测：性能提升又 onProgress 在一次渲染循环内触发次数有关，优化后可以只执行一次
+  - [x] 发起上传请求
+    - [x] perf: 请求并发数限制，避免过多网络任务阻塞网络和主线程
+  - [x] 合并 chunk 请求
+  - [x] 已上传文件 - 秒传
+  - [x] 取消上传
+    - [x] Class 改造，便于共享文件状态，方便续传逻辑实现
+    - [x] 调用 XHR 实例的 abort
+    - [x] 计算 hash 时取消上传？- 禁止
+  - [x] 已上传 chunk - 秒传
+  - [x] 断点续传
+    - [x] 恢复上传
+    - [x] 错误重传，错误之后，自动重试，重置 chunk progress
+  - [x] 上传完成 - 释放内存，清空 chunk 数据
+  - [x] 拖拽上传
+    - 禁用元素三个事件的默认行为：`ondragenter, ondragover, ondrop`
+      - `ondragover & ondrop` 默认行为不允许拖拽文件到元素上
+      - `ondragenter` 可能会有默认的样式
+    - 需要自定义文件名显示逻辑
+  - [x] 上传失败，成功的 提示
+  - [x] 文件预览
+- Server
+  - [x] 服务端起 server
+  - [x] 处理文件上传
+  - [x] 合并文件
+  - [x] 校验文件是否存在
