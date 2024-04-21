@@ -28,7 +28,7 @@
 
       <Progress
         ref="progressComp"
-        :pulse="uploaderPending"
+        :pulse="uploaderPending || isDragging"
         :fileSize="fileSize"
         :progressMap="progressMap"
       ></Progress>
@@ -92,12 +92,14 @@ const fileUploadContainer = ref<Element>();
 function bindingDragEvents() {
   const container = fileUploadContainer.value!;
 
-  ['dragenter', 'dragover', 'drop'].forEach((eventName) => {
+  ['dragenter', 'dragover', 'drop', 'dragleave'].forEach((eventName) => {
     container.addEventListener(
       eventName,
       (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        isDragging.value = ['dragenter', 'dragover'].includes(eventName);
 
         if (eventName === 'drop') {
           const [file] = (e as any).dataTransfer.files;
@@ -133,6 +135,8 @@ const uploaderState = computed(() => {
 const uploaderPending = computed(() => {
   return fileUploader.value?.state === UploadState.PENDING;
 });
+
+const isDragging = ref(false);
 
 const loading = computed(() => {
   return (
@@ -188,10 +192,19 @@ function onProgress(map: ChunkUploadProgress) {
 
 function previewFile(e: Event) {
   e.stopPropagation();
+
   const file = files.value[0];
-  if (!file || file.size > 1024 * 1024 * 100) return;
+
+  if (
+    !file ||
+    file.size > 1024 * 1024 * 100 ||
+    !['image/png', 'image/jpeg', 'image/gif'].includes(file.type)
+  )
+    return;
+
   const src = URL.createObjectURL(file);
   window.open(src);
+  URL.revokeObjectURL(src);
 }
 </script>
 
