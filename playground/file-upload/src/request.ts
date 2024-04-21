@@ -72,6 +72,8 @@ export function request({
         }
       }
     };
+
+    xhr.onerror = (e) => reject(e);
   });
 }
 
