@@ -7,24 +7,24 @@ export function calcHashByChunks(chunks: Blob[]): Promise<string> {
 
     let chunkIdx = 0;
 
-    const readAsArrayBuffer = () => {
+    const loadChunkBlob = () => {
       reader.readAsArrayBuffer(chunks[chunkIdx]);
     };
 
-    reader.onload = (e: any) => {
-      spark.append(e.target.result);
+    reader.onload = () => {
+      spark.append(reader.result as ArrayBuffer);
 
       if (chunkIdx === chunks.length - 1) {
         resolve(spark.end());
       } else {
         chunkIdx++;
-        readAsArrayBuffer();
+        loadChunkBlob();
       }
     };
 
     reader.onerror = (e) => reject(e);
 
-    readAsArrayBuffer();
+    loadChunkBlob();
   });
 }
 
