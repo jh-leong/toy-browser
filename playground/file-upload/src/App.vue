@@ -12,15 +12,17 @@
           </div>
         </div>
 
-        <div class="text-slate-500">
+        <div class="tooltip text-slate-500" :data-tip="filename">
           <input
-            class="opacity-0 absolute"
+            class="opacity-0 absolute w-0 h-0"
             type="file"
             :disabled="loading"
             @change="onFileChange"
           />
 
-          <span class="text-sm ml-[12px]">{{ filename }}</span>
+          <span class="text-sm ml-[12px]" @click.stop="previewFile">{{
+            shortenedFilename
+          }}</span>
         </div>
       </div>
 
@@ -72,7 +74,11 @@ onMounted(() => {
 });
 
 const filename = computed(() => {
-  const name = files.value[0]?.name;
+  return files.value[0]?.name || '';
+});
+
+const shortenedFilename = computed(() => {
+  const name = filename.value;
   if (!name) return '';
   if (name.length < 30) return name;
   return `${name.slice(0, 15)}...${name.slice(-15)}`;
@@ -178,6 +184,14 @@ const progressMap = ref<ChunkUploadProgress>({});
 function onProgress(map: ChunkUploadProgress) {
   // 结构创建新对象，触发更新
   progressMap.value = { ...map };
+}
+
+function previewFile(e: Event) {
+  e.stopPropagation();
+  const file = files.value[0];
+  if (!file || file.size > 1024 * 1024 * 100) return;
+  const src = URL.createObjectURL(file);
+  window.open(src);
 }
 </script>
 
