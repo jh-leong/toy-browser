@@ -1,6 +1,6 @@
 import { flushJobsWithRetry } from '@/utils';
 import { CusAbortController, post } from '@/request';
-import { calcFileHash } from '@/hash';
+import { calcFileHashByWorker } from '@/hash';
 
 export interface FileChunk {
   file: Blob;
@@ -51,43 +51,47 @@ export class FileUploader {
   }
 
   async upload() {
-    this.state = UploadState.PENDING;
+    try {
+      this.state = UploadState.PENDING;
 
-    this.chunkSize = getChunkSize(this.fileSize);
+      this.chunkSize = getChunkSize(this.fileSize);
 
-    // 1. 计算 hash
-    const timeKey = '[ calc hash ]';
-    console.time(timeKey);
-    this.fileHash = await calcFileHash(this.file, this.chunkSize);
-    console.timeEnd(timeKey);
+      // 1. 计算 hash
+      const timeKey = '[ calc hash ]';
+      console.time(timeKey);
+      this.fileHash = await calcFileHashByWorker(this.file, this.chunkSize);
+      console.timeEnd(timeKey);
 
-    // 2. 校验文件是否已上传
-    const { uploadedChunks } = await this.verifyFile();
+      // 2. 校验文件是否已上传
+      const { uploadedChunks } = await this.verifyFile();
 
-    // 已上传, 秒传
-    // @ts-ignore
-    if (this.state === UploadState.UPLOADED) return;
+      // 已上传, 秒传
+      // @ts-ignore
+      if (this.state === UploadState.UPLOADED) return;
 
-    // 3. 分块
-    //  - 测试 4.94GB 耗时 91ms
-    const chunksTimeKey = '[ create chunks ]';
-    console.time(chunksTimeKey);
-    this.chunks = createFileChunk({
-      file: this.file,
-      size: this.chunkSize,
-      fileHash: this.fileHash,
-    });
-    console.timeEnd(chunksTimeKey);
+      // 3. 分块
+      //  - 测试 4.94GB 耗时 91ms
+      const chunksTimeKey = '[ create chunks ]';
+      console.time(chunksTimeKey);
+      this.chunks = createFileChunk({
+        file: this.file,
+        size: this.chunkSize,
+        fileHash: this.fileHash,
+      });
+      console.timeEnd(chunksTimeKey);
 
-    this.options.onChunkComplete?.(this.chunks);
+      this.options.onChunkComplete?.(this.chunks);
 
-    // 4. 分片上传
-    await this.doChunksUpload(uploadedChunks);
+      // 4. 分片上传
+      await this.doChunksUpload(uploadedChunks);
 
-    // 5. 合并文件
-    await this.doMerge();
+      // 5. 合并文件
+      await this.doMerge();
 
-    this.onUploadSuccess();
+      this.onUploadSuccess();
+    } catch (err) {
+      this.onUploadFailed(err);
+    }
   }
 
   pause() {
@@ -100,15 +104,19 @@ export class FileUploader {
   }
 
   async resume() {
-    if (this.state !== UploadState.PAUSED) return;
+    try {
+      if (this.state !== UploadState.PAUSED) return;
 
-    this.state = UploadState.PENDING;
+      this.state = UploadState.PENDING;
 
-    const { uploadedChunks } = await this.verifyFile();
+      const { uploadedChunks } = await this.verifyFile();
 
-    await this.doChunksUpload(uploadedChunks);
-    await this.doMerge();
-    this.onUploadSuccess();
+      await this.doChunksUpload(uploadedChunks);
+      await this.doMerge();
+      this.onUploadSuccess();
+    } catch (err) {
+      this.onUploadFailed(err);
+    }
   }
 
   private async verifyFile() {
@@ -145,30 +153,26 @@ export class FileUploader {
   }
 
   private async doChunksUpload(uploadedChunks: string[]) {
-    try {
-      this.state = UploadState.UPLOADING;
+    this.state = UploadState.UPLOADING;
 
-      const seen = new Set(uploadedChunks);
+    const seen = new Set(uploadedChunks);
 
-      this.initProgress(seen);
+    this.initProgress(seen);
 
-      const onChunkProgress = (chunkHash: string, percent: number) => {
-        this.progressMap[chunkHash] = percent;
-        this.options?.onProgress?.(this.progressMap);
-      };
+    const onChunkProgress = (chunkHash: string, percent: number) => {
+      this.progressMap[chunkHash] = percent;
+      this.options?.onProgress?.(this.progressMap);
+    };
 
-      const chunks = this.chunks.filter((i) => !seen.has(i.chunkHash));
+    const chunks = this.chunks.filter((i) => !seen.has(i.chunkHash));
 
-      await doChunksUpload({
-        chunks,
-        fileHash: this.fileHash,
-        filename: this.filename,
-        abortList: this.abortList,
-        onProgress: onChunkProgress,
-      });
-    } catch (err) {
-      this.onUploadFailed(err);
-    }
+    await doChunksUpload({
+      chunks,
+      fileHash: this.fileHash,
+      filename: this.filename,
+      abortList: this.abortList,
+      onProgress: onChunkProgress,
+    });
   }
 
   private initProgress(seen: Set<string>) {
