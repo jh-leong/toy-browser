@@ -26,6 +26,7 @@
 
       <Progress
         ref="progressComp"
+        :pulse="uploaderPending"
         :fileSize="fileSize"
         :progressMap="progressMap"
       ></Progress>
@@ -123,9 +124,14 @@ const uploaderState = computed(() => {
   return fileUploader.value?.state;
 });
 
+const uploaderPending = computed(() => {
+  return fileUploader.value?.state === UploadState.PENDING;
+});
+
 const loading = computed(() => {
-  const state = fileUploader.value?.state;
-  return state === UploadState.UPLOADING || state === UploadState.PENDING;
+  return (
+    fileUploader.value?.state === UploadState.UPLOADING || uploaderPending.value
+  );
 });
 
 const disabledCancel = computed(() => {

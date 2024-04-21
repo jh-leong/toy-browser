@@ -1,6 +1,9 @@
 <template>
   <div
-    class="w-full h-[300px] progress_wrap p-[11px] border border-solid border-[#31363c] rounded-[6px]"
+    :class="[
+      'w-full h-[300px] progress_wrap p-[11px] border border-solid border-[#31363c] rounded-[6px]',
+      { 'animate-pulse': pulse },
+    ]"
   >
     <div
       v-for="(item, index) in group"
@@ -45,12 +48,14 @@ import { ChunkUploadProgress } from '@/upload';
 
 interface Props {
   progressMap: ChunkUploadProgress;
+  pulse?: boolean;
   fileSize?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   progressMap: () => ({}),
   fileSize: 0,
+  pulse: false,
 });
 
 defineExpose({
