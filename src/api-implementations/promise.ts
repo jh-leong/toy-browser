@@ -14,8 +14,8 @@ class MyPromise {
   #handlers: {
     reject: (reason: any) => any;
     resolve: (value: any) => any;
-    onRejected: (reason: any) => any;
-    onFulfilled: (value: any) => any;
+    onRejected?: (reason: any) => any;
+    onFulfilled?: (value: any) => any;
   }[] = [];
 
   constructor(executor) {
@@ -30,8 +30,45 @@ class MyPromise {
     try {
       executor(resolve, reject);
     } catch (err) {
-      reject(err);
+      this.#runMicrotask(() => reject(err));
     }
+  }
+
+  static resolve(value) {
+    if (value instanceof MyPromise) return value;
+
+    let _resolve, _reject;
+
+    const promise = new MyPromise((resolve, reject) => {
+      _resolve = resolve;
+      _reject = reject;
+    });
+
+    if (isPromiseLike(value)) {
+      value.then(_resolve, _reject);
+    } else {
+      _resolve(value);
+    }
+
+    return promise;
+  }
+
+  static reject(reason) {
+    return new MyPromise((_, reject) => reject(reason));
+  }
+
+  catch(onRejected) {
+    return this.then(null, onRejected);
+  }
+
+  finally(onFinally) {
+    return this.then(
+      (value) => MyPromise.resolve(onFinally()).then(() => value),
+      (reason) =>
+        MyPromise.resolve(onFinally()).then(() => {
+          throw reason;
+        })
+    );
   }
 
   then(onFulfilled, onRejected?) {
