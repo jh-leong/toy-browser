@@ -26,6 +26,8 @@ export enum UploadState {
   UPLOADED,
 }
 
+const MERGE_PROGRESS_KEY = '__merge__';
+
 export class FileUploader {
   private file: File;
 
@@ -150,6 +152,9 @@ export class FileUploader {
       fileHash: this.fileHash,
       chunkSize: this.chunkSize,
     });
+
+    this.progressMap[MERGE_PROGRESS_KEY] = 100;
+    this.options?.onProgress?.(this.progressMap);
   }
 
   private async doChunksUpload(uploadedChunks: string[]) {
@@ -176,10 +181,14 @@ export class FileUploader {
   }
 
   private initProgress(seen: Set<string>) {
-    this.progressMap = this.chunks.reduce((acc, chunk) => {
-      acc[chunk.chunkHash] = seen.has(chunk.chunkHash) ? 100 : 0;
-      return acc;
-    }, {});
+    this.progressMap = this.chunks.reduce(
+      (acc, chunk) => {
+        acc[chunk.chunkHash] = seen.has(chunk.chunkHash) ? 100 : 0;
+        return acc;
+      },
+      { [MERGE_PROGRESS_KEY]: 0 }
+    );
+
     this.options?.onProgress?.(this.progressMap);
   }
 
