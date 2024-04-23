@@ -1,3 +1,6 @@
+![demo](img/doemo.gif)
+
+
 - 项目总结
   - 熟悉前端二进制数据流操作
     - 读取，写入，分 chunk
@@ -68,7 +71,7 @@
   - [x] 进度条
     - [x] 点阵图效果
     - [x] perf: updateProgressState yield to main 减少不必要的执行
-      - 实测：性能提升又 onProgress 在一次渲染循环内触发次数有关，优化后可以只执行一次
+      - 实测：性能提升由 onProgress 在一次渲染循环内触发次数有关，优化后可以只执行一次
   - [x] 发起上传请求
     - [x] perf: 请求并发数限制，避免过多网络任务阻塞网络和主线程
   - [x] 合并 chunk 请求
